@@ -25,7 +25,7 @@ data class ImagesSearchModel(
 interface ApiService {
   @Headers(
     "Accept: application/json",
-    "Authorization: Bearer $apiKey",
+    "Authorization: Bearer $API_KEY",
   )
   @GET("images/search")
   suspend fun searchImages(
