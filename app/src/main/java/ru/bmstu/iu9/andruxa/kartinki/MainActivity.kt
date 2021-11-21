@@ -2,6 +2,7 @@ package ru.bmstu.iu9.andruxa.kartinki
 
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -50,8 +51,12 @@ import java.util.*
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class MainActivity : ComponentActivity() {
+  private var localeChangeBroadcastReciever: LocaleChangeBroadcastReciever? = null
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+    this.localeChangeBroadcastReciever = LocaleChangeBroadcastReciever(this)
+    registerReceiver(this.localeChangeBroadcastReciever, IntentFilter(Intent.ACTION_LOCALE_CHANGED))
     val viewModel = MainViewModel()
     setContent {
       val language = this.dataStore.data.map { preferences ->
@@ -91,6 +96,11 @@ class MainActivity : ComponentActivity() {
     config.setLocale(locale)
 //    createConfigurationContext(config)
     resources.updateConfiguration(config, resources.displayMetrics)
+  }
+
+  override fun onDestroy() {
+    super.onDestroy()
+    unregisterReceiver(this.localeChangeBroadcastReciever)
   }
 }
 
