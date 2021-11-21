@@ -20,8 +20,6 @@ data class ImagesSearchModel(
   )
 }
 
-
-
 interface ApiService {
   @Headers(
     "Accept: application/json",

@@ -1,6 +1,8 @@
 package ru.bmstu.iu9.andruxa.kartinki
 
+import android.content.Context
 import android.content.Intent
+import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -8,6 +10,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -22,25 +25,50 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.res.stringArrayResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat.startActivity
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
+import androidx.datastore.preferences.preferencesDataStore
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberImagePainter
 import coil.size.OriginalSize
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import ru.bmstu.iu9.andruxa.kartinki.ui.theme.KartinkiTheme
 import java.util.*
+
+val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class MainActivity : ComponentActivity() {
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     val viewModel = MainViewModel()
     setContent {
-      KartinkiTheme {
+      val language = this.dataStore.data.map { preferences ->
+        preferences[stringPreferencesKey("lang")] ?: "ru"
+      }.collectAsState(initial = "ru")
+      this.changeLocale(language.value)
+      val theme: State<Int> = this.dataStore.data.map { preferences ->
+        preferences[intPreferencesKey("theme")] ?: THEMES.values().indexOf(THEMES.SYSTEM)
+      }.collectAsState(initial = THEMES.values().indexOf(THEMES.SYSTEM))
+      val darkTheme = mutableStateOf(
+        when (theme.value) {
+          THEMES.values().indexOf(THEMES.LIGHT) -> false
+          THEMES.values().indexOf(THEMES.DARK) -> true
+          else -> isSystemInDarkTheme()
+        }
+      )
+      KartinkiTheme(darkTheme.value) {
         // A surface container using the 'background' color from the theme
         Surface(color = MaterialTheme.colors.background) {
           val navController = rememberNavController()
@@ -49,11 +77,20 @@ class MainActivity : ComponentActivity() {
             composable("image/{imageId}") { backStackEntry ->
               ImageViewer(backStackEntry.arguments?.getString("imageId"), viewModel)
             }
-            composable("settings") { Settings(navController) }
+            composable("settings") { Settings(navController, dataStore) }
           }
         }
       }
     }
+  }
+
+  private fun changeLocale(code: String) {
+    val locale = Locale(code)
+    Locale.setDefault(locale)
+    val config = Configuration(resources.configuration)
+    config.setLocale(locale)
+//    createConfigurationContext(config)
+    resources.updateConfiguration(config, resources.displayMetrics)
   }
 }
 
@@ -100,13 +137,18 @@ fun ImageViewer(id: String?, viewModel: MainViewModel) {
     image?.let { image ->
       Scaffold(
         floatingActionButton = {
+          val shareResource = stringResource(R.string.share)
           FloatingActionButton(onClick = {
             val shareIntent: Intent = Intent().apply {
               action = Intent.ACTION_SEND
               putExtra(Intent.EXTRA_TEXT, image.asset)
               type = "image/*"
             }
-            startActivity(context, Intent.createChooser(shareIntent, "Поделиться"), null)
+            startActivity(
+              context,
+              Intent.createChooser(shareIntent, shareResource),
+              null
+            )
           }) {
             Icon(Icons.Default.Share, contentDescription = "share")
           }
@@ -129,7 +171,7 @@ fun ImageViewer(id: String?, viewModel: MainViewModel) {
             text = image.description,
             modifier = Modifier
               .fillMaxWidth()
-              .padding(start = 8.dp, top = 8.dp, end = 8.dp),
+              .padding(start = 10.dp, top = 10.dp, end = 10.dp),
           )
         }
       }
@@ -138,10 +180,10 @@ fun ImageViewer(id: String?, viewModel: MainViewModel) {
 }
 
 @Composable
-fun <K>SettingsItem(map: Map<K, String>, defaultKey: K, label: String) {
+fun <K>SettingsItem(map: Map<K, String>, defaultKey: K, label: String, onChange: (K) -> Unit) {
   var expanded by remember { mutableStateOf(false) }
   val items = remember { map.keys }
-  var selectedItem: K by remember { mutableStateOf(defaultKey) }
+  var selectedItem: K = defaultKey
   Row(
     modifier = Modifier
       .fillMaxWidth()
@@ -155,7 +197,7 @@ fun <K>SettingsItem(map: Map<K, String>, defaultKey: K, label: String) {
       style = MaterialTheme.typography.h6,
     )
     Text(
-      text = map[selectedItem]!!,
+      text = map[defaultKey]!!,
       style = MaterialTheme.typography.subtitle1,
     )
   }
@@ -172,10 +214,11 @@ fun <K>SettingsItem(map: Map<K, String>, defaultKey: K, label: String) {
           horizontalAlignment = Alignment.End
         ) {
           val onClick: (K) -> Unit = { item ->
-            selectedItem = item
             Timer().schedule(object : TimerTask() {
               override fun run() {
+                selectedItem = item
                 expanded = false
+                onChange(item)
               }
             }, 150)
           }
@@ -198,7 +241,7 @@ fun <K>SettingsItem(map: Map<K, String>, defaultKey: K, label: String) {
             }
             Spacer(modifier = Modifier.height(20.dp))
           }
-          Text("отмена", modifier = Modifier
+          Text(stringResource(R.string.cancel), modifier = Modifier
             .wrapContentWidth()
             .clickable { expanded = false })
         }
@@ -208,7 +251,13 @@ fun <K>SettingsItem(map: Map<K, String>, defaultKey: K, label: String) {
 }
 
 @Composable
-fun Settings(navController: NavController) {
+fun Settings(navController: NavController, dataStore: DataStore<Preferences>) {
+  val languages: Map<String, String> =
+    LANGUAGE_CODES.zip(stringArrayResource(R.array.languages)).toMap()
+  val colors: Map<COLORS, String> =
+    COLORS.values().zip(stringArrayResource(R.array.colors)).toMap()
+  val themes: Map<THEMES, String> =
+    THEMES.values().zip(stringArrayResource(R.array.themes)).toMap()
   Scaffold(
     topBar = {
       TopAppBar {
@@ -222,7 +271,7 @@ fun Settings(navController: NavController) {
             ) { navController.popBackStack() },
           )
           Text(
-            text = "Настройки",
+            text = stringResource(R.string.settings),
             style = MaterialTheme.typography.h5,
             modifier = Modifier.padding(start = 20.dp),
           )
@@ -235,32 +284,61 @@ fun Settings(navController: NavController) {
         .fillMaxWidth()
         .padding(20.dp)
     ) {
+      val coroutineScope = rememberCoroutineScope()
       Text(
-        text = "Профиль",
+        text = stringResource(R.string.profile),
         style = MaterialTheme.typography.subtitle1,
       )
-      SettingsItem(map = LANGUGAGES, defaultKey = "ru", label = "\${имя профиля}")
+      SettingsItem(map = languages, defaultKey = "ru", label = "\${имя профиля}", {})
       Spacer(modifier = Modifier.height(20.dp))
       Text(
-        text = "Настройки",
+        text = stringResource(R.string.settings),
         style = MaterialTheme.typography.subtitle1,
       )
-      SettingsItem(map = LANGUGAGES, defaultKey = "ru", label = "язык")
+      SettingsItem(
+        map = languages,
+        defaultKey = dataStore.data.map{
+          it[stringPreferencesKey("lang")] ?: "ru"
+        }.collectAsState(initial = "ru").value,
+        label = stringResource(R.string.language),
+        onChange = { value ->
+          coroutineScope.launch {
+            dataStore.edit { settings ->
+              settings[stringPreferencesKey("lang")] = value
+            }
+          }
+        },
+      )
       Divider()
-      SettingsItem(map = COLORS_MAP, defaultKey = COLORS.VIOLET, label = "цвет")
+      SettingsItem(
+        map = colors,
+        defaultKey = COLORS.values()[dataStore.data.map {
+          it[intPreferencesKey("color")] ?: COLORS.values().indexOf(COLORS.PURPLE)
+        }.collectAsState(initial = COLORS.values().indexOf(COLORS.PURPLE)).value],
+        label = stringResource(R.string.color),
+        onChange = { value ->
+          coroutineScope.launch {
+            dataStore.edit { settings ->
+              settings[intPreferencesKey("color")] = COLORS.values().indexOf(value)
+            }
+          }
+        },
+      )
       Divider()
-      SettingsItem(map = THEMES_NAMES_MAP, defaultKey = THEMES.SYSTEM, label = "тема")
-    }
-  }
-}
-
-@Composable
-@Preview
-fun SettingsPreview() {
-  KartinkiTheme {
-    // A surface container using the 'background' color from the theme
-    Surface(color = MaterialTheme.colors.background) {
-      Settings(rememberNavController())
+      SettingsItem(
+        map = themes,
+        defaultKey = THEMES.values()[dataStore.data.map{
+          it[intPreferencesKey("theme")] ?: THEMES.values().indexOf(THEMES.SYSTEM)
+        }.collectAsState(initial = THEMES.values().indexOf(THEMES.SYSTEM)).value],
+        label = stringResource(R.string.theme),
+        onChange = { value ->
+          coroutineScope.launch {
+            dataStore.edit { settings ->
+              settings[intPreferencesKey("theme")] = THEMES.values().indexOf(value)
+            }
+          }
+        },
+      )
     }
   }
 }
