@@ -37,6 +37,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.lifecycle.viewModelScope
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -58,6 +59,7 @@ class MainActivity : ComponentActivity() {
     this.localeChangeBroadcastReciever = LocaleChangeBroadcastReciever(this)
     registerReceiver(this.localeChangeBroadcastReciever, IntentFilter(Intent.ACTION_LOCALE_CHANGED))
     val viewModel = MainViewModel()
+    val categoriesViewModel = CategoriesViewModel()
     setContent {
       val language = this.dataStore.data.map { preferences ->
         preferences[stringPreferencesKey("lang")] ?: "ru"
@@ -88,11 +90,14 @@ class MainActivity : ComponentActivity() {
               ImageViewer(backStackEntry.arguments?.getString("imageId"), viewModel)
             }
             composable("settings") { Settings(navController, dataStore) }
+            composable("categories") {CategoryList(navController, categoriesViewModel)}
           }
         }
       }
     }
   }
+
+
 
   private fun changeLocale(code: String) {
     val locale = Locale(code)
@@ -110,12 +115,36 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
+  val categories = remember{viewModel.categories}
+  Scaffold() {
+      LazyColumn(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = Alignment.CenterHorizontally,
+      )
+        {
+          items(
+            items = categories,
+            key = { it.id },
+            itemContent = {
+              Text(
+                text = it.name,
+                style = MaterialTheme.typography.h6,
+              )
+            },
+          )
+        }
+    }
+
+}
+
+@Composable
 fun MainList(navController: NavController, viewModel: MainViewModel) {
   val images = remember { viewModel.images }
   Scaffold(
     floatingActionButton = {
       FloatingActionButton(onClick = {
-        navController.navigate("settings")
+        navController.navigate("categories")
       }) {
         Icon(Icons.Default.Menu, contentDescription = "settings")
       }

@@ -25,3 +25,18 @@ class MainViewModel: ViewModel() {
     }
   }
 }
+
+data class Category(
+  val id: String,
+  val name: String
+)
+
+class CategoriesViewModel: ViewModel() {
+  val categories = mutableStateListOf<Category>()
+  init {
+    viewModelScope.launch {
+      val apiService = ApiService.getInstance()
+      categories.addAll(0, apiService.getCategories().data)
+    }
+  }
+}
