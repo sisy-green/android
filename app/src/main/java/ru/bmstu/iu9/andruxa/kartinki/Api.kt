@@ -32,8 +32,9 @@ interface ApiService {
   )
   @GET("images/search")
   suspend fun searchImages(
-    @Query("fields") fields: String = "data(id,assets/preview/url,description)",
-  ) : ImagesSearchModel
+    @Query("category") category: String? = null,
+    @Query("fields") fields: String = "data(id,assets/preview/url,description)"
+    ) : ImagesSearchModel
 
   @Headers(
     "Accept: application/json",
