@@ -66,6 +66,11 @@ class MainActivity : ComponentActivity() {
       val theme: State<Int> = this.dataStore.data.map { preferences ->
         preferences[intPreferencesKey("theme")] ?: THEMES.values().indexOf(THEMES.SYSTEM)
       }.collectAsState(initial = THEMES.values().indexOf(THEMES.SYSTEM))
+      val color: COLORS = COLORS.values()[this.dataStore.data.map {  preferences ->
+        preferences[intPreferencesKey("color")] ?: THEMES.values().indexOf(THEMES.SYSTEM)
+      }.collectAsState(
+        initial = COLORS.values().indexOf(COLORS.PURPLE)
+      ).value]
       val darkTheme = mutableStateOf(
         when (theme.value) {
           THEMES.values().indexOf(THEMES.LIGHT) -> false
@@ -73,7 +78,7 @@ class MainActivity : ComponentActivity() {
           else -> isSystemInDarkTheme()
         }
       )
-      KartinkiTheme(darkTheme.value) {
+      KartinkiTheme(darkTheme.value, color) {
         // A surface container using the 'background' color from the theme
         Surface(color = MaterialTheme.colors.background) {
           val navController = rememberNavController()
