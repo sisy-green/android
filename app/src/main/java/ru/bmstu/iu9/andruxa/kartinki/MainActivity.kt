@@ -161,7 +161,7 @@ fun ImageList(navController: NavController, viewModel: MainViewModel, categoryID
     Text("Shit Happens")
     return
   }
-  Text("Shit Happens")
+//  Text("Shit Happens")
 
   val images = remember { viewModel.images }
   if (images.size == 0) {
