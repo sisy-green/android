@@ -67,7 +67,7 @@ class MainActivity : ComponentActivity() {
         preferences[intPreferencesKey("theme")] ?: THEMES.values().indexOf(THEMES.SYSTEM)
       }.collectAsState(initial = THEMES.values().indexOf(THEMES.SYSTEM))
       val color: COLORS = COLORS.values()[this.dataStore.data.map {  preferences ->
-        preferences[intPreferencesKey("color")] ?: THEMES.values().indexOf(THEMES.SYSTEM)
+        preferences[intPreferencesKey("color")] ?: COLORS.values().indexOf(COLORS.PURPLE)
       }.collectAsState(
         initial = COLORS.values().indexOf(COLORS.PURPLE)
       ).value]
