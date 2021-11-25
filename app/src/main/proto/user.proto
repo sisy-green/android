@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+option java_package = "ru.bmstu.iu9.andruxa.kartinki";
+option java_multiple_files = true;
+
+message SettingsData {
+  string name = 1;
+  string theme = 2;
+  string colour = 3;
+  string language = 4;
+}
+
+message User {
+  repeated SettingsData users = 1;
+}

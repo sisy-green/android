@@ -43,6 +43,8 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberImagePainter
 import coil.size.OriginalSize
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import ru.bmstu.iu9.andruxa.kartinki.ui.theme.KartinkiTheme
@@ -59,6 +61,7 @@ class MainActivity : ComponentActivity() {
     registerReceiver(this.localeChangeBroadcastReciever, IntentFilter(Intent.ACTION_LOCALE_CHANGED))
     val viewModel = MainViewModel()
     val categoriesViewModel = CategoriesViewModel()
+    val userRepo = UserRepo(userDataStore)
     setContent {
       val language = this.dataStore.data.map { preferences ->
         preferences[stringPreferencesKey("lang")] ?: "ru"
@@ -88,7 +91,7 @@ class MainActivity : ComponentActivity() {
             composable("image/{imageId}") { backStackEntry ->
               ImageViewer(backStackEntry.arguments?.getString("imageId"), viewModel)
             }
-            composable("settings") { Settings(navController, dataStore) }
+            composable("settings") { Settings(navController, userRepo, dataStore) }
             composable("categories") { CategoryList(navController, categoriesViewModel) }
             composable("category/{ID}") { backStackEntry ->
               ImageList(
@@ -338,8 +341,9 @@ fun <K> SettingsItem(map: Map<K, String>, defaultKey: K, label: String, onChange
   }
 }
 
+
 @Composable
-fun Settings(navController: NavController, dataStore: DataStore<Preferences>) {
+fun Settings(navController: NavController, userRepo: UserRepo, dataStore: DataStore<Preferences>) {
   val languages: Map<String, String> =
     LANGUAGE_CODES.zip(stringArrayResource(R.array.languages)).toMap()
   val colors: Map<COLORS, String> =
@@ -377,7 +381,7 @@ fun Settings(navController: NavController, dataStore: DataStore<Preferences>) {
         text = stringResource(R.string.profile),
         style = MaterialTheme.typography.subtitle1,
       )
-      SettingsItem(map = languages, defaultKey = "ru", label = "\${имя профиля}", {})
+      SettingsItem(map = languages, defaultKey = userRepo, label = "Профиль", {})
       Spacer(modifier = Modifier.height(20.dp))
       Text(
         text = stringResource(R.string.settings),
@@ -395,7 +399,12 @@ fun Settings(navController: NavController, dataStore: DataStore<Preferences>) {
               settings[stringPreferencesKey("lang")] = value
             }
           }
-        },
+//          coroutineScope.launch {
+//            userRepo.addUser(SettingsData("huita11", "en", COLORS.RED, THEMES.DARK))
+//            userRepo.settings.data.collect{it->it.users.forEach{ user ->
+//              println(user)}}
+//          }
+        }
       )
       Divider()
       SettingsItem(
