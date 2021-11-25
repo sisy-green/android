@@ -84,17 +84,19 @@ class MainActivity : ComponentActivity() {
         Surface(color = MaterialTheme.colors.background) {
           val navController = rememberNavController()
           NavHost(navController = navController, startDestination = "categories") {
-            composable("list") { MainList(navController, viewModel) }
+//            composable("list") { MainList(navController, viewModel) }
             composable("image/{imageId}") { backStackEntry ->
               ImageViewer(backStackEntry.arguments?.getString("imageId"), viewModel)
             }
             composable("settings") { Settings(navController, dataStore) }
             composable("categories") { CategoryList(navController, categoriesViewModel) }
-            composable("category/{ID}") { backStackEntry -> ImageList(
-              navController = navController,
-              viewModel = viewModel,
-              categoryID = backStackEntry.arguments?.getString("ID")
-            ) }
+            composable("category/{ID}") { backStackEntry ->
+              ImageList(
+                navController = navController,
+                viewModel = viewModel,
+                categoryID = backStackEntry.arguments?.getString("ID")
+              )
+            }
           }
         }
       }
@@ -115,6 +117,7 @@ class MainActivity : ComponentActivity() {
     unregisterReceiver(this.localeChangeBroadcastReciever)
   }
 }
+
 
 @Composable
 fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
@@ -147,27 +150,12 @@ fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
       )
     }
   }
-
 }
 
 @Composable
 fun ImageList(navController: NavController, viewModel: MainViewModel, categoryID: String? = null) {
-  try {
-//    viewModel.search(categoryID)
-    viewModel.searchMock()
-
-  } catch (e: Exception) {
-    println("MYCUSTOM "+ e.message.toString())
-    Text("Shit Happens")
-    return
-  }
-//  Text("Shit Happens")
-
-  val images = remember { viewModel.images }
-  if (images.size == 0) {
-    Text("0 pictures =(")
-    return
-  }
+//  val images = viewModel.images.distinctBy{ it.id }
+  val images = remember{viewModel.search(categoryID)}
 
   Scaffold(
     topBar = {
@@ -179,7 +167,9 @@ fun ImageList(navController: NavController, viewModel: MainViewModel, categoryID
             modifier = Modifier.clickable(
               interactionSource = MutableInteractionSource(),
               indication = null,
-            ) { navController.popBackStack() },
+            ) {
+              navController.popBackStack()
+            },
           )
           Text(
             text = stringResource(R.string.settings),
