@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
     val viewModel = MainViewModel()
     val categoriesViewModel = CategoriesViewModel()
     val userRepo = UserRepo(userDataStore)
-    lifecycleScope.launch { userRepo.getUsers() }
+    lifecycleScope.launch { userRepo.initSaved()}
 
     setContent {
       val language = this.dataStore.data.map { preferences ->
@@ -280,18 +280,18 @@ fun ImageViewer(id: String?, viewModel: MainViewModel) {
 @Composable
 fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
   val defaultKey = dataStore.data.map { p ->
-    p[stringPreferencesKey("profile")] ?: "default"
+    p[stringPreferencesKey("name")] ?: "default"
   }.collectAsState(initial = "default").value
   var expanded by remember { mutableStateOf(false) }
   val coroutineScope = rememberCoroutineScope()
-  val items = remember { userRepo.saved }
+  val items = mutableListOf<SettingsData>()
+  items.addAll(userRepo.saved)
   var selectedItem = defaultKey
   val onChange = { value: String ->
     coroutineScope.launch {
       selectedItem = value
       dataStore.edit { settings -> settings[stringPreferencesKey("name")] = value }
-      val newSettings = userRepo.saved.find { settingsData -> settingsData.name == value }
-      Log.d("huitaONCHANGE", newSettings.toString())
+      val newSettings = userRepo.getUsers().find { settingsData -> settingsData.name == value }
       dataStore.edit { settings -> settings[stringPreferencesKey("lang")] = newSettings!!.language }
       dataStore.edit { settings ->
         settings[intPreferencesKey("color")] = COLORS.values().indexOf(newSettings!!.color)
@@ -302,7 +302,6 @@ fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
     }
   }
 
-  Log.d("HUIT", "2")
   Row(
     modifier = Modifier
       .fillMaxWidth()
@@ -339,35 +338,36 @@ fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
                 expanded = false
                 onChange(item)
               }
-            }, 150)
+            }, 5)
           }
           items.forEach { item ->
-            Row(
-              modifier = Modifier.fillMaxWidth(),
-              verticalAlignment = Alignment.CenterVertically,
-            ) {
-              Log.d("HUITT", selectedItem)
-              RadioButton(selected = selectedItem == item.name, onClick = { onClick(item.name) })
-              Text(
-                text = item.name,
-                modifier = Modifier
-                  .padding(start = 10.dp)
-                  .fillMaxWidth()
-                  .clickable(
-                    interactionSource = MutableInteractionSource(),
-                    indication = null
-                  ) { onClick(item.name) },
-              )
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                RadioButton(
+                  selected = selectedItem == item.name,
+                  onClick = { onClick(item.name) })
+                Text(
+                  text = item.name,
+                  modifier = Modifier
+                    .padding(start = 10.dp)
+                    .fillMaxWidth()
+                    .clickable(
+                      interactionSource = MutableInteractionSource(),
+                      indication = null
+                    ) { onClick(item.name) },
+                )
+              }
+              Spacer(modifier = Modifier.height(20.dp))
             }
-            Spacer(modifier = Modifier.height(20.dp))
+            Text(stringResource(R.string.cancel), modifier = Modifier
+              .wrapContentWidth()
+              .clickable { expanded = false })
           }
-          Text(stringResource(R.string.cancel), modifier = Modifier
-            .wrapContentWidth()
-            .clickable { expanded = false })
         }
       }
     }
-  }
 }
 
 @Composable
@@ -449,7 +449,7 @@ fun Settings(
   dataStore: DataStore<Preferences>
 ) {
   val currentProfile = dataStore.data.map { p ->
-    p[stringPreferencesKey("profile")] ?: "default"
+    p[stringPreferencesKey("name")] ?: "default"
   }.collectAsState(initial = "default").value
   val languages: Map<String, String> =
     LANGUAGE_CODES.zip(stringArrayResource(R.array.languages)).toMap()
@@ -507,6 +507,7 @@ fun Settings(
             }
             val currentSettings =
               userRepo.getUsers().find { settingsData -> settingsData.name == currentProfile }
+            Log.d("HUIT sett", currentProfile+ " " + currentSettings.toString())
             if (currentSettings != null) {
               userRepo.editUser(
                 SettingsData(

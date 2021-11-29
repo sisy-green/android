@@ -3,6 +3,7 @@ package ru.bmstu.iu9.andruxa.kartinki
 import android.content.Context
 import android.util.Log
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.datastore.core.DataStore
 import androidx.datastore.core.Serializer
@@ -27,28 +28,32 @@ val Context.userDataStore: DataStore<User> by dataStore(
 class UserRepo(
   val settings: DataStore<User>,
 ) {
-  val saved = mutableListOf<SettingsData>()
   suspend fun addUser(s: SettingsData) {
     settings.updateData { store -> User(store.users + s) }
   }
-
+  val saved = mutableListOf<SettingsData>()
   suspend fun editUser(s: SettingsData) {
-    settings.updateData { store ->
-      User(
-        store.users.map { settingsData ->
-          if (settingsData.name == s.name) {
-            s
-          } else {
-            settingsData
-          }
-        }
-      )
+    val users = getUsers()
+    val edited = mutableListOf<SettingsData>()
+    users.forEach { settingsData ->
+      if (settingsData.name == s.name) {
+        edited.add(s)
+      } else {
+        edited.add(settingsData)
+      }
     }
+    settings.updateData{ store -> User(edited)}
   }
+
   suspend fun getUsers(): List<SettingsData> {
+    val result = mutableListOf<SettingsData>()
+    settings.data.take(1).collect { users -> result.addAll(0, users.users) }
+    return result.toList()
+  }
+
+  suspend fun initSaved() {
     saved.clear()
-    settings.data.collect { users -> saved.addAll(0, users.users) }
-    return saved
+    saved.addAll(getUsers())
   }
 }
 
