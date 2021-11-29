@@ -5,6 +5,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -24,6 +25,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
@@ -37,18 +39,25 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import coil.compose.rememberImagePainter
 import coil.size.OriginalSize
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import ru.bmstu.iu9.andruxa.kartinki.ui.theme.KartinkiTheme
 import java.util.*
+import kotlin.coroutines.coroutineContext
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
+
 
 class MainActivity : ComponentActivity() {
   private var localeChangeBroadcastReciever: LocaleChangeBroadcastReciever? = null
@@ -59,6 +68,9 @@ class MainActivity : ComponentActivity() {
     registerReceiver(this.localeChangeBroadcastReciever, IntentFilter(Intent.ACTION_LOCALE_CHANGED))
     val viewModel = MainViewModel()
     val categoriesViewModel = CategoriesViewModel()
+    val userRepo = UserRepo(userDataStore)
+    lifecycleScope.launch { userRepo.initSaved()}
+
     setContent {
       val language = this.dataStore.data.map { preferences ->
         preferences[stringPreferencesKey("lang")] ?: "ru"
@@ -88,7 +100,7 @@ class MainActivity : ComponentActivity() {
             composable("image/{imageId}") { backStackEntry ->
               ImageViewer(backStackEntry.arguments?.getString("imageId"), viewModel)
             }
-            composable("settings") { Settings(navController, dataStore) }
+            composable("settings") { Settings(navController, userRepo, dataStore) }
             composable("categories") { CategoryList(navController, categoriesViewModel) }
             composable("category/{ID}") { backStackEntry ->
               ImageList(
@@ -155,7 +167,7 @@ fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
 @Composable
 fun ImageList(navController: NavController, viewModel: MainViewModel, categoryID: String? = null) {
 //  val images = viewModel.images.distinctBy{ it.id }
-  val images = remember{viewModel.search(categoryID)}
+  val images = remember { viewModel.search(categoryID) }
 
   Scaffold(
     topBar = {
@@ -217,54 +229,145 @@ fun MainList(navController: NavController, viewModel: MainViewModel) {
 
 @Composable
 fun ImageViewer(id: String?, viewModel: MainViewModel) {
-  if (id != null) {
-    id.let {
-      val image = viewModel.images.find { item -> item.id == id }
-      val context = LocalContext.current
-      image?.let { image ->
-        Scaffold(
-          floatingActionButton = {
-            val shareResource = stringResource(R.string.share)
-            FloatingActionButton(onClick = {
-              val shareIntent: Intent = Intent().apply {
-                action = Intent.ACTION_SEND
-                putExtra(Intent.EXTRA_TEXT, image.asset)
-                type = "image/*"
-              }
-              startActivity(
-                context,
-                Intent.createChooser(shareIntent, shareResource),
-                null
-              )
-            }) {
-              Icon(Icons.Default.Share, contentDescription = "share")
+  id?.let {
+    val image = viewModel.images.find { item -> item.id == id }
+    val context = LocalContext.current
+    image?.let { image ->
+      Scaffold(
+        floatingActionButton = {
+          val shareResource = stringResource(R.string.share)
+          FloatingActionButton(onClick = {
+            val shareIntent: Intent = Intent().apply {
+              action = Intent.ACTION_SEND
+              putExtra(Intent.EXTRA_TEXT, image.asset)
+              type = "image/*"
             }
+            startActivity(
+              context,
+              Intent.createChooser(shareIntent, shareResource),
+              null
+            )
+          }) {
+            Icon(Icons.Default.Share, contentDescription = "share")
           }
+        }
+      ) {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight()
+            .background(Color(R.color.black)),
+          verticalArrangement = Arrangement.Center,
         ) {
-          Column(
+          Image(
+            painter = rememberImagePainter(image.asset, builder = { size(OriginalSize) }),
+            contentDescription = image.description,
+            modifier = Modifier.fillMaxWidth(),
+            contentScale = ContentScale.FillWidth,
+          )
+          Text(
+            text = image.description,
             modifier = Modifier
               .fillMaxWidth()
-              .fillMaxHeight()
-              .background(Color(R.color.black)),
-            verticalArrangement = Arrangement.Center,
-          ) {
-            Image(
-              painter = rememberImagePainter(image.asset, builder = { size(OriginalSize) }),
-              contentDescription = image.description,
-              modifier = Modifier.fillMaxWidth(),
-              contentScale = ContentScale.FillWidth,
-            )
-            Text(
-              text = image.description,
-              modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 10.dp, top = 10.dp, end = 10.dp),
-            )
+              .padding(start = 10.dp, top = 10.dp, end = 10.dp),
+          )
+        }
+      }
+    }
+  }
+}
+
+@Composable
+fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
+  val defaultKey = dataStore.data.map { p ->
+    p[stringPreferencesKey("name")] ?: "default"
+  }.collectAsState(initial = "default").value
+  var expanded by remember { mutableStateOf(false) }
+  val coroutineScope = rememberCoroutineScope()
+  val items = mutableListOf<SettingsData>()
+  items.addAll(userRepo.saved)
+  var selectedItem = defaultKey
+  val onChange = { value: String ->
+    coroutineScope.launch {
+      selectedItem = value
+      dataStore.edit { settings -> settings[stringPreferencesKey("name")] = value }
+      val newSettings = userRepo.getUsers().find { settingsData -> settingsData.name == value }
+      dataStore.edit { settings -> settings[stringPreferencesKey("lang")] = newSettings!!.language }
+      dataStore.edit { settings ->
+        settings[intPreferencesKey("color")] = COLORS.values().indexOf(newSettings!!.color)
+      }
+      dataStore.edit { settings ->
+        settings[intPreferencesKey("theme")] = THEMES.values().indexOf(newSettings!!.theme)
+      }
+    }
+  }
+
+  Row(
+    modifier = Modifier
+      .fillMaxWidth()
+      .clickable { expanded = !expanded }
+      .padding(vertical = 15.dp),
+    horizontalArrangement = Arrangement.SpaceBetween,
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    Text(
+      text = "Профиль",
+      style = MaterialTheme.typography.h6,
+    )
+    Text(
+      text = defaultKey,
+      style = MaterialTheme.typography.subtitle1,
+    )
+  }
+  if (expanded) {
+    Dialog(onDismissRequest = { expanded = false }) {
+      Card(
+        backgroundColor = MaterialTheme.colors.background,
+        modifier = Modifier.fillMaxWidth(),
+      ) {
+        Column(
+          modifier = Modifier
+            .fillMaxWidth()
+            .padding(20.dp),
+          horizontalAlignment = Alignment.End
+        ) {
+          val onClick: (String) -> Unit = { item ->
+            Timer().schedule(object : TimerTask() {
+              override fun run() {
+                selectedItem = item
+                expanded = false
+                onChange(item)
+              }
+            }, 5)
+          }
+          items.forEach { item ->
+              Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+              ) {
+                RadioButton(
+                  selected = selectedItem == item.name,
+                  onClick = { onClick(item.name) })
+                Text(
+                  text = item.name,
+                  modifier = Modifier
+                    .padding(start = 10.dp)
+                    .fillMaxWidth()
+                    .clickable(
+                      interactionSource = MutableInteractionSource(),
+                      indication = null
+                    ) { onClick(item.name) },
+                )
+              }
+              Spacer(modifier = Modifier.height(20.dp))
+            }
+            Text(stringResource(R.string.cancel), modifier = Modifier
+              .wrapContentWidth()
+              .clickable { expanded = false })
           }
         }
       }
     }
-  } else Text(text = "no id wtf")
 }
 
 @Composable
@@ -338,8 +441,16 @@ fun <K> SettingsItem(map: Map<K, String>, defaultKey: K, label: String, onChange
   }
 }
 
+
 @Composable
-fun Settings(navController: NavController, dataStore: DataStore<Preferences>) {
+fun Settings(
+  navController: NavController,
+  userRepo: UserRepo,
+  dataStore: DataStore<Preferences>
+) {
+  val currentProfile = dataStore.data.map { p ->
+    p[stringPreferencesKey("name")] ?: "default"
+  }.collectAsState(initial = "default").value
   val languages: Map<String, String> =
     LANGUAGE_CODES.zip(stringArrayResource(R.array.languages)).toMap()
   val colors: Map<COLORS, String> =
@@ -377,7 +488,7 @@ fun Settings(navController: NavController, dataStore: DataStore<Preferences>) {
         text = stringResource(R.string.profile),
         style = MaterialTheme.typography.subtitle1,
       )
-      SettingsItem(map = languages, defaultKey = "ru", label = "\${имя профиля}", {})
+      ProfileItem(userRepo = userRepo, dataStore = dataStore)
       Spacer(modifier = Modifier.height(20.dp))
       Text(
         text = stringResource(R.string.settings),
@@ -394,8 +505,19 @@ fun Settings(navController: NavController, dataStore: DataStore<Preferences>) {
             dataStore.edit { settings ->
               settings[stringPreferencesKey("lang")] = value
             }
+            val currentSettings =
+              userRepo.getUsers().find { settingsData -> settingsData.name == currentProfile }
+            Log.d("HUIT sett", currentProfile+ " " + currentSettings.toString())
+            if (currentSettings != null) {
+              userRepo.editUser(
+                SettingsData(
+                  currentSettings.name, value,
+                  currentSettings.color, currentSettings.theme
+                )
+              )
+            }
           }
-        },
+        }
       )
       Divider()
       SettingsItem(
@@ -408,6 +530,16 @@ fun Settings(navController: NavController, dataStore: DataStore<Preferences>) {
           coroutineScope.launch {
             dataStore.edit { settings ->
               settings[intPreferencesKey("color")] = COLORS.values().indexOf(value)
+            }
+            val currentSettings =
+              userRepo.getUsers().find { settingsData -> settingsData.name == currentProfile }
+            if (currentSettings != null) {
+              userRepo.editUser(
+                SettingsData(
+                  currentSettings.name, currentSettings.language,
+                  value, currentSettings.theme
+                )
+              )
             }
           }
         },
@@ -424,9 +556,20 @@ fun Settings(navController: NavController, dataStore: DataStore<Preferences>) {
             dataStore.edit { settings ->
               settings[intPreferencesKey("theme")] = THEMES.values().indexOf(value)
             }
+            val currentSettings =
+              userRepo.getUsers().find { settingsData -> settingsData.name == currentProfile }
+            if (currentSettings != null) {
+              userRepo.editUser(
+                SettingsData(
+                  currentSettings.name, currentSettings.language,
+                  currentSettings.color, value
+                )
+              )
+            }
           }
         },
       )
     }
   }
 }
+
