@@ -47,6 +47,7 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import coil.compose.rememberImagePainter
 import coil.size.OriginalSize
 import kotlinx.coroutines.coroutineScope
@@ -105,8 +106,12 @@ class MainActivity : ComponentActivity() {
             }
             composable("settings") { Settings(navController, userRepo, dataStore) }
             composable("categories") { CategoryList(navController, categoriesViewModel) }
-            composable("category/{ID}") { backStackEntry ->
+            composable(
+              "category/{ID}?name={name}",
+              arguments = listOf(navArgument("name") { defaultValue = "Images" }
+              )) { backStackEntry ->
               ImageList(
+                backStackEntry.arguments?.getString("name"),
                 navController = navController,
                 viewModel = viewModel,
                 categoryID = backStackEntry.arguments?.getString("ID")
@@ -159,7 +164,9 @@ fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
               .clickable(
                 interactionSource = MutableInteractionSource(),
                 indication = null
-              ) { navController.navigate("category/${it.id}") },
+              ) {
+                navController.navigate("category/${it.id}?name=${it.name}")
+              },
           )
         },
       )
@@ -168,7 +175,12 @@ fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
 }
 
 @Composable
-fun ImageList(navController: NavController, viewModel: MainViewModel, categoryID: String? = null) {
+fun ImageList(
+  listName: String? = "",
+  navController: NavController,
+  viewModel: MainViewModel,
+  categoryID: String? = null
+) {
 //  val images = viewModel.images.distinctBy{ it.id }
   val images = remember { viewModel.search(categoryID) }
 
@@ -186,11 +198,13 @@ fun ImageList(navController: NavController, viewModel: MainViewModel, categoryID
               navController.popBackStack()
             },
           )
-          Text(
-            text = stringResource(R.string.settings),
-            style = MaterialTheme.typography.h5,
-            modifier = Modifier.padding(start = 20.dp),
-          )
+          if (listName != null) {
+            Text(
+              text = listName,
+              style = MaterialTheme.typography.h5,
+              modifier = Modifier.padding(start = 20.dp),
+            )
+          }
         }
       }
     },
@@ -368,14 +382,16 @@ fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
 
-          ) {
+            ) {
             TextField(
               value = input,
               onValueChange = { input = it },
               label = { Text("Новый профиль") },
               modifier = Modifier.width(200.dp),
-              )
-            Text("Save", modifier = Modifier.wrapContentWidth().padding(start=10.dp)
+            )
+            Text("Save", modifier = Modifier
+              .wrapContentWidth()
+              .padding(start = 10.dp)
               .clickable {
                 coroutineScope.launch {
                   val users = userRepo.getUsers()
