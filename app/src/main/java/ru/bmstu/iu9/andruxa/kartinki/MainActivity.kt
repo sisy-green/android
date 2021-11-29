@@ -58,6 +58,7 @@ class MainActivity : ComponentActivity() {
     this.localeChangeBroadcastReciever = LocaleChangeBroadcastReciever(this)
     registerReceiver(this.localeChangeBroadcastReciever, IntentFilter(Intent.ACTION_LOCALE_CHANGED))
     val viewModel = MainViewModel()
+    val categoriesViewModel = CategoriesViewModel()
     setContent {
       val language = this.dataStore.data.map { preferences ->
         preferences[stringPreferencesKey("lang")] ?: "ru"
@@ -66,7 +67,7 @@ class MainActivity : ComponentActivity() {
       val theme: State<Int> = this.dataStore.data.map { preferences ->
         preferences[intPreferencesKey("theme")] ?: THEMES.values().indexOf(THEMES.SYSTEM)
       }.collectAsState(initial = THEMES.values().indexOf(THEMES.SYSTEM))
-      val color: COLORS = COLORS.values()[this.dataStore.data.map {  preferences ->
+      val color: COLORS = COLORS.values()[this.dataStore.data.map { preferences ->
         preferences[intPreferencesKey("color")] ?: COLORS.values().indexOf(COLORS.PURPLE)
       }.collectAsState(
         initial = COLORS.values().indexOf(COLORS.PURPLE)
@@ -82,12 +83,20 @@ class MainActivity : ComponentActivity() {
         // A surface container using the 'background' color from the theme
         Surface(color = MaterialTheme.colors.background) {
           val navController = rememberNavController()
-          NavHost(navController = navController, startDestination = "list") {
-            composable("list") { MainList(navController, viewModel) }
+          NavHost(navController = navController, startDestination = "categories") {
+//            composable("list") { MainList(navController, viewModel) }
             composable("image/{imageId}") { backStackEntry ->
               ImageViewer(backStackEntry.arguments?.getString("imageId"), viewModel)
             }
             composable("settings") { Settings(navController, dataStore) }
+            composable("categories") { CategoryList(navController, categoriesViewModel) }
+            composable("category/{ID}") { backStackEntry ->
+              ImageList(
+                navController = navController,
+                viewModel = viewModel,
+                categoryID = backStackEntry.arguments?.getString("ID")
+              )
+            }
           }
         }
       }
@@ -109,10 +118,67 @@ class MainActivity : ComponentActivity() {
   }
 }
 
+
 @Composable
-fun MainList(navController: NavController, viewModel: MainViewModel) {
-  val images = remember { viewModel.images }
+fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
+  val categories = viewModel.categories
+  Scaffold {
+    LazyColumn(
+      modifier = Modifier
+        .fillMaxWidth()
+        .clickable {}
+        .padding(vertical = 15.dp),
+      horizontalAlignment = Alignment.CenterHorizontally,
+    )
+    {
+      items(
+        items = categories,
+        key = { item -> item.id },
+        itemContent = {
+          Text(
+            text = it.name,
+            style = MaterialTheme.typography.h6,
+            modifier = Modifier
+              .padding(start = 10.dp)
+              .fillMaxWidth()
+              .clickable(
+                interactionSource = MutableInteractionSource(),
+                indication = null
+              ) { navController.navigate("category/${it.id}") },
+          )
+        },
+      )
+    }
+  }
+}
+
+@Composable
+fun ImageList(navController: NavController, viewModel: MainViewModel, categoryID: String? = null) {
+//  val images = viewModel.images.distinctBy{ it.id }
+  val images = remember{viewModel.search(categoryID)}
+
   Scaffold(
+    topBar = {
+      TopAppBar {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          Icon(
+            Icons.Default.ArrowBack,
+            contentDescription = "back",
+            modifier = Modifier.clickable(
+              interactionSource = MutableInteractionSource(),
+              indication = null,
+            ) {
+              navController.popBackStack()
+            },
+          )
+          Text(
+            text = stringResource(R.string.settings),
+            style = MaterialTheme.typography.h5,
+            modifier = Modifier.padding(start = 20.dp),
+          )
+        }
+      }
+    },
     floatingActionButton = {
       FloatingActionButton(onClick = {
         navController.navigate("settings")
@@ -127,7 +193,7 @@ fun MainList(navController: NavController, viewModel: MainViewModel) {
     ) {
       items(
         items = images,
-        key = { it.id },
+        key = { item -> item.id },
         itemContent = {
           Image(
             painter = rememberImagePainter(it.asset, builder = { size(OriginalSize) }),
@@ -145,57 +211,64 @@ fun MainList(navController: NavController, viewModel: MainViewModel) {
 }
 
 @Composable
-fun ImageViewer(id: String?, viewModel: MainViewModel) {
-  id?.let {
-    val image = remember { viewModel.images.find { it.id == id }}
-    val context = LocalContext.current
-    image?.let { image ->
-      Scaffold(
-        floatingActionButton = {
-          val shareResource = stringResource(R.string.share)
-          FloatingActionButton(onClick = {
-            val shareIntent: Intent = Intent().apply {
-              action = Intent.ACTION_SEND
-              putExtra(Intent.EXTRA_TEXT, image.asset)
-              type = "image/*"
-            }
-            startActivity(
-              context,
-              Intent.createChooser(shareIntent, shareResource),
-              null
-            )
-          }) {
-            Icon(Icons.Default.Share, contentDescription = "share")
-          }
-        }
-      ) {
-        Column(
-          modifier = Modifier
-            .fillMaxWidth()
-            .fillMaxHeight()
-            .background(Color(R.color.black)),
-          verticalArrangement = Arrangement.Center,
-        ) {
-          Image(
-            painter = rememberImagePainter(image.asset, builder = { size(OriginalSize) }),
-            contentDescription = image.description,
-            modifier = Modifier.fillMaxWidth(),
-            contentScale = ContentScale.FillWidth,
-          )
-          Text(
-            text = image.description,
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(start = 10.dp, top = 10.dp, end = 10.dp),
-          )
-        }
-      }
-    }
-  }
+fun MainList(navController: NavController, viewModel: MainViewModel) {
+  ImageList(navController = navController, viewModel = viewModel)
 }
 
 @Composable
-fun <K>SettingsItem(map: Map<K, String>, defaultKey: K, label: String, onChange: (K) -> Unit) {
+fun ImageViewer(id: String?, viewModel: MainViewModel) {
+  if (id != null) {
+    id.let {
+      val image = viewModel.images.find { item -> item.id == id }
+      val context = LocalContext.current
+      image?.let { image ->
+        Scaffold(
+          floatingActionButton = {
+            val shareResource = stringResource(R.string.share)
+            FloatingActionButton(onClick = {
+              val shareIntent: Intent = Intent().apply {
+                action = Intent.ACTION_SEND
+                putExtra(Intent.EXTRA_TEXT, image.asset)
+                type = "image/*"
+              }
+              startActivity(
+                context,
+                Intent.createChooser(shareIntent, shareResource),
+                null
+              )
+            }) {
+              Icon(Icons.Default.Share, contentDescription = "share")
+            }
+          }
+        ) {
+          Column(
+            modifier = Modifier
+              .fillMaxWidth()
+              .fillMaxHeight()
+              .background(Color(R.color.black)),
+            verticalArrangement = Arrangement.Center,
+          ) {
+            Image(
+              painter = rememberImagePainter(image.asset, builder = { size(OriginalSize) }),
+              contentDescription = image.description,
+              modifier = Modifier.fillMaxWidth(),
+              contentScale = ContentScale.FillWidth,
+            )
+            Text(
+              text = image.description,
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 10.dp, top = 10.dp, end = 10.dp),
+            )
+          }
+        }
+      }
+    }
+  } else Text(text = "no id wtf")
+}
+
+@Composable
+fun <K> SettingsItem(map: Map<K, String>, defaultKey: K, label: String, onChange: (K) -> Unit) {
   var expanded by remember { mutableStateOf(false) }
   val items = remember { map.keys }
   var selectedItem: K = defaultKey
@@ -312,7 +385,7 @@ fun Settings(navController: NavController, dataStore: DataStore<Preferences>) {
       )
       SettingsItem(
         map = languages,
-        defaultKey = dataStore.data.map{
+        defaultKey = dataStore.data.map {
           it[stringPreferencesKey("lang")] ?: "ru"
         }.collectAsState(initial = "ru").value,
         label = stringResource(R.string.language),
@@ -342,7 +415,7 @@ fun Settings(navController: NavController, dataStore: DataStore<Preferences>) {
       Divider()
       SettingsItem(
         map = themes,
-        defaultKey = THEMES.values()[dataStore.data.map{
+        defaultKey = THEMES.values()[dataStore.data.map {
           it[intPreferencesKey("theme")] ?: THEMES.values().indexOf(THEMES.SYSTEM)
         }.collectAsState(initial = THEMES.values().indexOf(THEMES.SYSTEM)).value],
         label = stringResource(R.string.theme),
