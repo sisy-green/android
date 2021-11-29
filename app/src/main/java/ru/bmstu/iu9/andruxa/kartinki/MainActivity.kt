@@ -507,7 +507,6 @@ fun Settings(
             }
             val currentSettings =
               userRepo.getUsers().find { settingsData -> settingsData.name == currentProfile }
-            Log.d("HUIT sett", currentProfile+ " " + currentSettings.toString())
             if (currentSettings != null) {
               userRepo.editUser(
                 SettingsData(

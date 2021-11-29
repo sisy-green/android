@@ -70,7 +70,6 @@ class MainViewModel : ViewModel() {
       viewModelScope.launch {
         try {
           val resp :ImagesSearchModel = apiService.searchImages(categoryID)
-          println("HUITA0")
           images.clear()
           images.addAll(0, resp.data.map {
             Image(
@@ -79,7 +78,6 @@ class MainViewModel : ViewModel() {
               it.description,
             )}.distinctBy { it.id })}
         catch (e: Exception) {
-          println("HUITA1")
           searchMock()
         }
   }
@@ -106,7 +104,6 @@ class CategoriesViewModel : ViewModel() {
   fun getMock(){
     val result = fun () :String { return "[{\"id\":\"26\",\"name\":\"Abstract\"},{\"id\":\"1\",\"name\":\"Animals/Wildlife\"},{\"id\":\"11\",\"name\":\"The Arts\"},{\"id\":\"3\",\"name\":\"Backgrounds/Textures\"},{\"id\":\"27\",\"name\":\"Beauty/Fashion\"},{\"id\":\"2\",\"name\":\"Buildings/Landmarks\"},{\"id\":\"4\",\"name\":\"Business/Finance\"},{\"id\":\"5\",\"name\":\"Education\"},{\"id\":\"6\",\"name\":\"Food and Drink\"},{\"id\":\"7\",\"name\":\"Healthcare/Medical\"},{\"id\":\"8\",\"name\":\"Holidays\"},{\"id\":\"10\",\"name\":\"Industrial\"},{\"id\":\"21\",\"name\":\"Interiors\"},{\"id\":\"22\",\"name\":\"Miscellaneous\"},{\"id\":\"12\",\"name\":\"Nature\"},{\"id\":\"9\",\"name\":\"Objects\"},{\"id\":\"25\",\"name\":\"Parks/Outdoor\"},{\"id\":\"13\",\"name\":\"People\"},{\"id\":\"14\",\"name\":\"Religion\"},{\"id\":\"15\",\"name\":\"Science\"},{\"id\":\"17\",\"name\":\"Signs/Symbols\"},{\"id\":\"18\",\"name\":\"Sports/Recreation\"},{\"id\":\"16\",\"name\":\"Technology\"},{\"id\":\"0\",\"name\":\"Transportation\"},{\"id\":\"24\",\"name\":\"Vintage\"}]"}()
 //    categories.clear()
-    println("HUITAGODA")
     categories.addAll( Json{ignoreUnknownKeys=true}.decodeFromString<List<Category>>(result))
   }
   }

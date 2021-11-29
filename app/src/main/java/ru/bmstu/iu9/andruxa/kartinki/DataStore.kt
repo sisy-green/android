@@ -101,7 +101,6 @@ object UserDataSerializer : Serializer<User> {
     return try {
       parseFrom(input)
     } catch (exception: InvalidProtocolBufferException) {
-      Log.e("USER", exception.toString())
       defaultValue
     }
   }
