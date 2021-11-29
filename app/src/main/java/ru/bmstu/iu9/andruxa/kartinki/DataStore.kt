@@ -31,6 +31,7 @@ class UserRepo(
   suspend fun addUser(s: SettingsData) {
     settings.updateData { store -> User(store.users + s) }
   }
+
   val saved = mutableListOf<SettingsData>()
   suspend fun editUser(s: SettingsData) {
     val users = getUsers()
@@ -42,7 +43,7 @@ class UserRepo(
         edited.add(settingsData)
       }
     }
-    settings.updateData{ store -> User(edited)}
+    settings.updateData { store -> User(edited) }
   }
 
   suspend fun getUsers(): List<SettingsData> {
@@ -87,11 +88,11 @@ object UserDataSerializer : Serializer<User> {
   override val defaultValue: User = User(
     listOf(
       SettingsData(
-        "default", "en",
+        "Purple Sunshine", "en",
         COLORS.PURPLE, THEMES.SYSTEM
       ),
       SettingsData(
-        "default1", "ru",
+        "Красный Вельвет", "ru",
         COLORS.RED, THEMES.DARK
       )
     )

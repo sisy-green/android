@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,6 +31,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat.startActivity
@@ -69,7 +72,7 @@ class MainActivity : ComponentActivity() {
     val viewModel = MainViewModel()
     val categoriesViewModel = CategoriesViewModel()
     val userRepo = UserRepo(userDataStore)
-    lifecycleScope.launch { userRepo.initSaved()}
+    lifecycleScope.launch { userRepo.initSaved() }
 
     setContent {
       val language = this.dataStore.data.map { preferences ->
@@ -301,7 +304,6 @@ fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
       }
     }
   }
-
   Row(
     modifier = Modifier
       .fillMaxWidth()
@@ -341,33 +343,61 @@ fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
             }, 5)
           }
           items.forEach { item ->
-              Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-              ) {
-                RadioButton(
-                  selected = selectedItem == item.name,
-                  onClick = { onClick(item.name) })
-                Text(
-                  text = item.name,
-                  modifier = Modifier
-                    .padding(start = 10.dp)
-                    .fillMaxWidth()
-                    .clickable(
-                      interactionSource = MutableInteractionSource(),
-                      indication = null
-                    ) { onClick(item.name) },
-                )
-              }
-              Spacer(modifier = Modifier.height(20.dp))
+            Row(
+              modifier = Modifier.fillMaxWidth(),
+              verticalAlignment = Alignment.CenterVertically,
+            ) {
+              RadioButton(
+                selected = selectedItem == item.name,
+                onClick = { onClick(item.name) })
+              Text(
+                text = item.name,
+                modifier = Modifier
+                  .padding(start = 10.dp)
+                  .fillMaxWidth()
+                  .clickable(
+                    interactionSource = MutableInteractionSource(),
+                    indication = null
+                  ) { onClick(item.name) },
+              )
             }
-            Text(stringResource(R.string.cancel), modifier = Modifier
-              .wrapContentWidth()
-              .clickable { expanded = false })
+            Spacer(modifier = Modifier.height(20.dp))
           }
+          var input by rememberSaveable { mutableStateOf("") }
+          Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+
+          ) {
+            TextField(
+              value = input,
+              onValueChange = { input = it },
+              label = { Text("Новый профиль") },
+              modifier = Modifier.width(200.dp),
+              )
+            Text("Save", modifier = Modifier.wrapContentWidth().padding(start=10.dp)
+              .clickable {
+                coroutineScope.launch {
+                  val users = userRepo.getUsers()
+                  if (users.find { user -> user.name == input } != null) {
+                    Log.e("New Profile", "already exists")
+                  } else {
+                    userRepo.addUser(SettingsData(input, "en", COLORS.RED, THEMES.LIGHT))
+                    userRepo.initSaved()
+                    selectedItem = input
+                    expanded = false
+                    onChange(input)
+                  }
+                }
+              })
+          }
+          Text(stringResource(R.string.cancel), modifier = Modifier
+            .wrapContentWidth()
+            .clickable { expanded = false })
         }
       }
     }
+  }
 }
 
 @Composable
