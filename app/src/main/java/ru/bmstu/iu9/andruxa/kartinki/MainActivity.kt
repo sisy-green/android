@@ -195,7 +195,9 @@ fun Search(navController: NavController) {
             onValueChange = { input = it },
             label = { Text("Поиск") },
             modifier = Modifier.width(200.dp),
+            maxLines = 1
           )
+          input = input.replace("\n", "")
           IconButton(onClick = {
             navController.navigate("search/?name=${input}&current=search&query=${input}")
           }) {
