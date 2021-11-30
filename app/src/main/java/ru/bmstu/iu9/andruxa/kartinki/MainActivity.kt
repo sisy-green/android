@@ -204,13 +204,6 @@ fun ImageList(
         }
       }
     },
-    floatingActionButton = {
-      FloatingActionButton(onClick = {
-        navController.navigate("settings")
-      }) {
-        Icon(Icons.Default.Menu, contentDescription = "settings")
-      }
-    },
     bottomBar = {
       if (current != null) {
         BottomBar(navController = navController, current = current)
