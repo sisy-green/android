@@ -1,6 +1,5 @@
 package ru.bmstu.iu9.andruxa.kartinki
 
-import Notify
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -9,8 +8,6 @@ import android.content.IntentFilter
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
-import android.os.CountDownTimer
-import android.text.format.Time
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -90,8 +87,6 @@ class MainActivity : ComponentActivity() {
   }
 
   private var localeChangeBroadcastReciever: LocaleChangeBroadcastReciever? = null
-  val executorService: ExecutorService = Executors.newFixedThreadPool(4)
-  val notifier = Notify()
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     this.localeChangeBroadcastReciever = LocaleChangeBroadcastReciever(this)
@@ -99,19 +94,10 @@ class MainActivity : ComponentActivity() {
     val viewModel = MainViewModel()
     val categoriesViewModel = CategoriesViewModel()
     val userRepo = UserRepo(userDataStore)
-    createNotificationChannel("kartinki")
     lifecycleScope.launch { userRepo.initSaved() }
-    val timer =
-      object : CountDownTimer(Duration.ofDays(5).toMillis(), Duration.ofMinutes(30).toMillis()) {
-        override fun onTick(millisUntilFinished: Long) {
-          notifier.send(context = applicationContext)
-        }
-        override fun onFinish() {
-          notifier.send(context = applicationContext)
-        }
-      }
-    executorService.execute {
-      timer.start()
+    createNotificationChannel(CHANNEL_ID)
+    Intent(this, NotificationService::class.java).also { intent ->
+      startService(intent)
     }
     setContent {
       val language = this.dataStore.data.map { preferences ->
