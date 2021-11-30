@@ -213,7 +213,6 @@ fun ImageList(
     },
     bottomBar = {
       if (current != null) {
-        Log.d("HUIT", current + "Huit")
         BottomBar(navController = navController, current = current)
       }
     }
