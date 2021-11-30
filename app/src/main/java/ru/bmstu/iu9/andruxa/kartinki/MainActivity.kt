@@ -1,10 +1,16 @@
 package ru.bmstu.iu9.andruxa.kartinki
 
+import Notify
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
+import android.os.Build
 import android.os.Bundle
+import android.os.CountDownTimer
+import android.text.format.Time
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -35,6 +41,9 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.startActivity
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -57,15 +66,32 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import ru.bmstu.iu9.andruxa.kartinki.ui.theme.KartinkiTheme
+import java.time.Duration
 import java.util.*
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import kotlin.coroutines.coroutineContext
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-
 class MainActivity : ComponentActivity() {
-  private var localeChangeBroadcastReciever: LocaleChangeBroadcastReciever? = null
+  private fun createNotificationChannel(CHANNEL_ID: String) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val name = getString(R.string.channel_name)
+      val descriptionText = getString(R.string.channel_description)
+      val importance = NotificationManager.IMPORTANCE_DEFAULT
+      val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+        description = descriptionText
+      }
+      val notificationManager: NotificationManager =
+        getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+      notificationManager.createNotificationChannel(channel)
+    }
+  }
 
+  private var localeChangeBroadcastReciever: LocaleChangeBroadcastReciever? = null
+  val executorService: ExecutorService = Executors.newFixedThreadPool(4)
+  val notifier = Notify()
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
     this.localeChangeBroadcastReciever = LocaleChangeBroadcastReciever(this)
@@ -73,8 +99,20 @@ class MainActivity : ComponentActivity() {
     val viewModel = MainViewModel()
     val categoriesViewModel = CategoriesViewModel()
     val userRepo = UserRepo(userDataStore)
+    createNotificationChannel("kartinki")
     lifecycleScope.launch { userRepo.initSaved() }
-
+    val timer =
+      object : CountDownTimer(Duration.ofDays(5).toMillis(), Duration.ofMinutes(30).toMillis()) {
+        override fun onTick(millisUntilFinished: Long) {
+          notifier.send(context = applicationContext)
+        }
+        override fun onFinish() {
+          notifier.send(context = applicationContext)
+        }
+      }
+    executorService.execute {
+      timer.start()
+    }
     setContent {
       val language = this.dataStore.data.map { preferences ->
         preferences[stringPreferencesKey("lang")] ?: "ru"
@@ -95,6 +133,7 @@ class MainActivity : ComponentActivity() {
           else -> isSystemInDarkTheme()
         }
       )
+
       KartinkiTheme(darkTheme.value, color) {
         // A surface container using the 'background' color from the theme
         Surface(color = MaterialTheme.colors.background) {
@@ -116,6 +155,7 @@ class MainActivity : ComponentActivity() {
                 viewModel = viewModel,
                 categoryID = backStackEntry.arguments?.getString("ID")
               )
+
             }
           }
         }
@@ -141,6 +181,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
+
   val categories = viewModel.categories
   Scaffold {
     LazyColumn(
@@ -246,6 +287,7 @@ fun MainList(navController: NavController, viewModel: MainViewModel) {
 
 @Composable
 fun ImageViewer(id: String?, viewModel: MainViewModel) {
+
   id?.let {
     val image = viewModel.images.find { item -> item.id == id }
     val context = LocalContext.current
