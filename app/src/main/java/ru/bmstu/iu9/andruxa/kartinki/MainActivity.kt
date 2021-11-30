@@ -150,6 +150,13 @@ class MainActivity : ComponentActivity() {
 fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
   val categories = viewModel.categories
   Scaffold(
+    topBar = { TopAppBar() {
+      Text(
+        text = "Categories",
+        style = MaterialTheme.typography.h5,
+        modifier = Modifier.padding(start = 20.dp),
+      )
+    }},
     bottomBar = { BottomBar(navController = navController, current = "categories") }
   )
   {
@@ -188,28 +195,33 @@ fun Search(navController: NavController) {
   Scaffold(
     topBar = {
       TopAppBar {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-          var input by rememberSaveable { mutableStateOf("") }
-          TextField(
-            value = input,
-            onValueChange = { input = it },
-            label = { Text("Поиск") },
-            modifier = Modifier.width(200.dp),
-            maxLines = 1
-          )
-          input = input.replace("\n", "")
-          IconButton(onClick = {
-            navController.navigate("search/?name=${input}&current=search&query=${input}")
-          }) {
-            Icon(imageVector = Icons.Default.Search, contentDescription = "search")
-          }
-        }
+        Text(
+          text = "Search",
+          style = MaterialTheme.typography.h5,
+          modifier = Modifier.padding(start = 20.dp),
+        )
       }
     },
     bottomBar = {
       BottomBar(navController = navController, current = "search")
     }
   ) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+      var input by rememberSaveable { mutableStateOf("") }
+      TextField(
+        value = input,
+        onValueChange = { input = it },
+        label = { Text("Поиск") },
+        modifier = Modifier.width(200.dp),
+        maxLines = 1
+      )
+      input = input.replace("\n", "")
+      IconButton(onClick = {
+        navController.navigate("search/?name=${input}&current=search&query=${input}")
+      }) {
+        Icon(imageVector = Icons.Default.Search, contentDescription = "search")
+      }
+    }
   }
 }
 
@@ -293,7 +305,7 @@ fun ImageViewer(id: String?, viewModel: MainViewModel) {
   id?.let {
     val image  = rememberSaveable(stateSaver = ImageSaver) { mutableStateOf( viewModel.images.find{ item -> item.id ==id}!!)}.value
     val context = LocalContext.current
-    image?.let { image ->
+    image.let { image ->
       Scaffold(
         floatingActionButton = {
           val shareResource = stringResource(R.string.share)
