@@ -6,6 +6,7 @@ import android.content.IntentFilter
 import android.content.res.Configuration
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -18,20 +19,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -47,33 +44,29 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import coil.compose.rememberImagePainter
 import coil.size.OriginalSize
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import ru.bmstu.iu9.andruxa.kartinki.ui.theme.KartinkiTheme
 import java.util.*
-import kotlin.coroutines.coroutineContext
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
-
 class MainActivity : ComponentActivity() {
-  private var localeChangeBroadcastReciever: LocaleChangeBroadcastReciever? = null
-
+  private var localeChangeBroadcastReceiver: LocaleChangeBroadcastReciever? = null
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    this.localeChangeBroadcastReciever = LocaleChangeBroadcastReciever(this)
-    registerReceiver(this.localeChangeBroadcastReciever, IntentFilter(Intent.ACTION_LOCALE_CHANGED))
+    this.localeChangeBroadcastReceiver = LocaleChangeBroadcastReciever(this)
+    registerReceiver(this.localeChangeBroadcastReceiver, IntentFilter(Intent.ACTION_LOCALE_CHANGED))
     val viewModel = MainViewModel()
     val categoriesViewModel = CategoriesViewModel()
     val userRepo = UserRepo(userDataStore)
     lifecycleScope.launch { userRepo.initSaved() }
-
+    Intent(this, NotificationService::class.java).also { intent ->
+      startService(intent)
+    }
     setContent {
       val language = this.dataStore.data.map { preferences ->
         preferences[stringPreferencesKey("lang")] ?: "ru"
@@ -94,22 +87,27 @@ class MainActivity : ComponentActivity() {
           else -> isSystemInDarkTheme()
         }
       )
+
       KartinkiTheme(darkTheme.value, color) {
         // A surface container using the 'background' color from the theme
         Surface(color = MaterialTheme.colors.background) {
           val navController = rememberNavController()
-          NavHost(navController = navController, startDestination = "categories") {
-//            composable("list") { MainList(navController, viewModel) }
+          NavHost(navController = navController, startDestination = "home") {
+            composable("home") { MainList(navController, viewModel) }
             composable("image/{imageId}") { backStackEntry ->
               ImageViewer(backStackEntry.arguments?.getString("imageId"), viewModel)
             }
             composable("settings") { Settings(navController, userRepo, dataStore) }
             composable("categories") { CategoryList(navController, categoriesViewModel) }
-            composable("category/{ID}") { backStackEntry ->
+            composable(
+              "category/{ID}?name={name}&current={current}",
+              arguments = listOf(navArgument("name") { defaultValue = "Images" }, navArgument("current") {defaultValue = ""})) { backStackEntry ->
               ImageList(
+                listName = backStackEntry.arguments?.getString("name"),
                 navController = navController,
                 viewModel = viewModel,
-                categoryID = backStackEntry.arguments?.getString("ID")
+                categoryID = backStackEntry.arguments?.getString("ID"),
+                current = backStackEntry.arguments?.getString("current"),
               )
             }
           }
@@ -129,15 +127,17 @@ class MainActivity : ComponentActivity() {
 
   override fun onDestroy() {
     super.onDestroy()
-    unregisterReceiver(this.localeChangeBroadcastReciever)
+    unregisterReceiver(this.localeChangeBroadcastReceiver)
   }
 }
-
 
 @Composable
 fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
   val categories = viewModel.categories
-  Scaffold {
+  Scaffold(
+    bottomBar = { BottomBar(navController = navController, current = "categories") }
+  )
+  {
     LazyColumn(
       modifier = Modifier
         .fillMaxWidth()
@@ -159,7 +159,9 @@ fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
               .clickable(
                 interactionSource = MutableInteractionSource(),
                 indication = null
-              ) { navController.navigate("category/${it.id}") },
+              ) {
+                navController.navigate("category/${it.id}?name=${it.name}&current=categories")
+              },
           )
         },
       )
@@ -168,29 +170,37 @@ fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
 }
 
 @Composable
-fun ImageList(navController: NavController, viewModel: MainViewModel, categoryID: String? = null) {
+fun ImageList(
+  listName: String? = "",
+  navController: NavController,
+  viewModel: MainViewModel,
+  categoryID: String? = null, current: String? = ""
+) {
 //  val images = viewModel.images.distinctBy{ it.id }
   val images = remember { viewModel.search(categoryID) }
-
   Scaffold(
     topBar = {
       TopAppBar {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Icon(
-            Icons.Default.ArrowBack,
-            contentDescription = "back",
-            modifier = Modifier.clickable(
-              interactionSource = MutableInteractionSource(),
-              indication = null,
-            ) {
-              navController.popBackStack()
-            },
-          )
-          Text(
-            text = stringResource(R.string.settings),
-            style = MaterialTheme.typography.h5,
-            modifier = Modifier.padding(start = 20.dp),
-          )
+          if (current != "home") {
+            Icon(
+              Icons.Default.ArrowBack,
+              contentDescription = "back",
+              modifier = Modifier.clickable(
+                interactionSource = MutableInteractionSource(),
+                indication = null,
+              ) {
+                navController.popBackStack()
+              },
+            )
+          }
+          if (listName != null) {
+            Text(
+              text = listName,
+              style = MaterialTheme.typography.h5,
+              modifier = Modifier.padding(start = 20.dp),
+            )
+          }
         }
       }
     },
@@ -199,6 +209,11 @@ fun ImageList(navController: NavController, viewModel: MainViewModel, categoryID
         navController.navigate("settings")
       }) {
         Icon(Icons.Default.Menu, contentDescription = "settings")
+      }
+    },
+    bottomBar = {
+      if (current != null) {
+        BottomBar(navController = navController, current = current)
       }
     }
   ) {
@@ -227,11 +242,17 @@ fun ImageList(navController: NavController, viewModel: MainViewModel, categoryID
 
 @Composable
 fun MainList(navController: NavController, viewModel: MainViewModel) {
-  ImageList(navController = navController, viewModel = viewModel)
+  ImageList(
+    listName = "Hot Pics",
+    navController = navController,
+    viewModel = viewModel,
+    current = "home"
+  )
 }
 
 @Composable
 fun ImageViewer(id: String?, viewModel: MainViewModel) {
+
   id?.let {
     val image = viewModel.images.find { item -> item.id == id }
     val context = LocalContext.current
@@ -368,14 +389,16 @@ fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
 
-          ) {
+            ) {
             TextField(
               value = input,
               onValueChange = { input = it },
               label = { Text("Новый профиль") },
               modifier = Modifier.width(200.dp),
-              )
-            Text("Save", modifier = Modifier.wrapContentWidth().padding(start=10.dp)
+            )
+            Text("Save", modifier = Modifier
+              .wrapContentWidth()
+              .padding(start = 10.dp)
               .clickable {
                 coroutineScope.launch {
                   val users = userRepo.getUsers()
@@ -396,6 +419,27 @@ fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
             .clickable { expanded = false })
         }
       }
+    }
+  }
+}
+
+@Composable
+fun BottomBar(navController: NavController, current: String) {
+  BottomAppBar {
+    IconButton(onClick = { navController.navigate("home") }, enabled = current != "home") {
+      Icon(Icons.Default.Home, contentDescription = "home")
+    }
+    IconButton(
+      onClick = { navController.navigate("categories") },
+      enabled = current != "categories"
+    ) {
+      Icon(Icons.Default.Menu, contentDescription = "categories")
+    }
+    IconButton(
+      onClick = { navController.navigate("settings") },
+      enabled = current != "settings"
+    ) {
+      Icon(Icons.Default.Settings, contentDescription = "settings")
     }
   }
 }
@@ -506,7 +550,8 @@ fun Settings(
           )
         }
       }
-    }
+    },
+    bottomBar =     {BottomBar(navController = navController, current = "settings")}
   ) {
     Column(
       modifier = Modifier

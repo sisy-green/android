@@ -16,6 +16,8 @@
     <string name="settings">Настройки</string>
     <string name="share">Поделиться</string>
     <string name="theme">тема</string>
+    <string name="channel_name">Картинки</string>
+    <string name="channel_description">Давно тебя не было в уличных гонках!</string>
     <string-array name="themes">
         <item>Светлая</item>
         <item>Тёмная</item>
