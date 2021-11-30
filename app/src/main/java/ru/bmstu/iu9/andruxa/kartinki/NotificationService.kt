@@ -1,8 +1,6 @@
 package ru.bmstu.iu9.andruxa.kartinki
 
-import android.app.PendingIntent
-import android.app.Service
-import android.app.TaskStackBuilder
+import android.app.*
 import android.content.Context
 import android.content.Intent
 import android.os.*
@@ -13,6 +11,19 @@ import java.time.Duration
 
 const val CHANNEL_ID = "kartinki"
 class NotificationService : Service() {
+  private fun createNotificationChannel(CHANNEL_ID: String) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+      val name = getString(R.string.channel_name)
+      val descriptionText = getString(R.string.channel_description)
+      val importance = NotificationManager.IMPORTANCE_DEFAULT
+      val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
+        description = descriptionText
+      }
+      val notificationManager: NotificationManager =
+        getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+      notificationManager.createNotificationChannel(channel)
+    }
+  }
   private val timer =
     object : CountDownTimer(Duration.ofDays(5).toMillis(), Duration.ofHours(10).toMillis()) {
       override fun onTick(millisUntilFinished: Long) {
@@ -45,6 +56,7 @@ class NotificationService : Service() {
   override fun onCreate() {
     HandlerThread("ServiceStartArguments", Process.THREAD_PRIORITY_BACKGROUND).apply {
       start()
+      createNotificationChannel(CHANNEL_ID)
       timer.start()
     }
   }

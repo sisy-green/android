@@ -1,14 +1,12 @@
 package ru.bmstu.iu9.andruxa.kartinki
 
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.res.Configuration
-import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
@@ -21,26 +19,19 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
-import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.startActivity
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
@@ -56,46 +47,23 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import coil.compose.rememberImagePainter
 import coil.size.OriginalSize
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.flow.collect
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import ru.bmstu.iu9.andruxa.kartinki.ui.theme.KartinkiTheme
-import java.time.Duration
 import java.util.*
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import kotlin.coroutines.coroutineContext
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
 class MainActivity : ComponentActivity() {
-  private fun createNotificationChannel(CHANNEL_ID: String) {
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-      val name = getString(R.string.channel_name)
-      val descriptionText = getString(R.string.channel_description)
-      val importance = NotificationManager.IMPORTANCE_DEFAULT
-      val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
-        description = descriptionText
-      }
-      val notificationManager: NotificationManager =
-        getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-      notificationManager.createNotificationChannel(channel)
-    }
-  }
-
-  private var localeChangeBroadcastReciever: LocaleChangeBroadcastReciever? = null
+  private var localeChangeBroadcastReceiver: LocaleChangeBroadcastReciever? = null
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
-    this.localeChangeBroadcastReciever = LocaleChangeBroadcastReciever(this)
-    registerReceiver(this.localeChangeBroadcastReciever, IntentFilter(Intent.ACTION_LOCALE_CHANGED))
+    this.localeChangeBroadcastReceiver = LocaleChangeBroadcastReciever(this)
+    registerReceiver(this.localeChangeBroadcastReceiver, IntentFilter(Intent.ACTION_LOCALE_CHANGED))
     val viewModel = MainViewModel()
     val categoriesViewModel = CategoriesViewModel()
     val userRepo = UserRepo(userDataStore)
     lifecycleScope.launch { userRepo.initSaved() }
-    createNotificationChannel(CHANNEL_ID)
     Intent(this, NotificationService::class.java).also { intent ->
       startService(intent)
     }
@@ -124,24 +92,23 @@ class MainActivity : ComponentActivity() {
         // A surface container using the 'background' color from the theme
         Surface(color = MaterialTheme.colors.background) {
           val navController = rememberNavController()
-          NavHost(navController = navController, startDestination = "categories") {
-//            composable("list") { MainList(navController, viewModel) }
+          NavHost(navController = navController, startDestination = "home") {
+            composable("home") { MainList(navController, viewModel) }
             composable("image/{imageId}") { backStackEntry ->
               ImageViewer(backStackEntry.arguments?.getString("imageId"), viewModel)
             }
             composable("settings") { Settings(navController, userRepo, dataStore) }
             composable("categories") { CategoryList(navController, categoriesViewModel) }
             composable(
-              "category/{ID}?name={name}",
-              arguments = listOf(navArgument("name") { defaultValue = "Images" }
-              )) { backStackEntry ->
+              "category/{ID}?name={name}&current={current}",
+              arguments = listOf(navArgument("name") { defaultValue = "Images" }, navArgument("current") {defaultValue = ""})) { backStackEntry ->
               ImageList(
-                backStackEntry.arguments?.getString("name"),
+                listName = backStackEntry.arguments?.getString("name"),
                 navController = navController,
                 viewModel = viewModel,
-                categoryID = backStackEntry.arguments?.getString("ID")
+                categoryID = backStackEntry.arguments?.getString("ID"),
+                current = backStackEntry.arguments?.getString("current"),
               )
-
             }
           }
         }
@@ -160,16 +127,17 @@ class MainActivity : ComponentActivity() {
 
   override fun onDestroy() {
     super.onDestroy()
-    unregisterReceiver(this.localeChangeBroadcastReciever)
+    unregisterReceiver(this.localeChangeBroadcastReceiver)
   }
 }
 
-
 @Composable
 fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
-
   val categories = viewModel.categories
-  Scaffold {
+  Scaffold(
+    bottomBar = { BottomBar(navController = navController, current = "categories") }
+  )
+  {
     LazyColumn(
       modifier = Modifier
         .fillMaxWidth()
@@ -192,7 +160,7 @@ fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
                 interactionSource = MutableInteractionSource(),
                 indication = null
               ) {
-                navController.navigate("category/${it.id}?name=${it.name}")
+                navController.navigate("category/${it.id}?name=${it.name}&current=categories")
               },
           )
         },
@@ -206,25 +174,26 @@ fun ImageList(
   listName: String? = "",
   navController: NavController,
   viewModel: MainViewModel,
-  categoryID: String? = null
+  categoryID: String? = null, current: String? = ""
 ) {
 //  val images = viewModel.images.distinctBy{ it.id }
   val images = remember { viewModel.search(categoryID) }
-
   Scaffold(
     topBar = {
       TopAppBar {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Icon(
-            Icons.Default.ArrowBack,
-            contentDescription = "back",
-            modifier = Modifier.clickable(
-              interactionSource = MutableInteractionSource(),
-              indication = null,
-            ) {
-              navController.popBackStack()
-            },
-          )
+          if (current != "home") {
+            Icon(
+              Icons.Default.ArrowBack,
+              contentDescription = "back",
+              modifier = Modifier.clickable(
+                interactionSource = MutableInteractionSource(),
+                indication = null,
+              ) {
+                navController.popBackStack()
+              },
+            )
+          }
           if (listName != null) {
             Text(
               text = listName,
@@ -240,6 +209,12 @@ fun ImageList(
         navController.navigate("settings")
       }) {
         Icon(Icons.Default.Menu, contentDescription = "settings")
+      }
+    },
+    bottomBar = {
+      if (current != null) {
+        Log.d("HUIT", current + "Huit")
+        BottomBar(navController = navController, current = current)
       }
     }
   ) {
@@ -268,7 +243,12 @@ fun ImageList(
 
 @Composable
 fun MainList(navController: NavController, viewModel: MainViewModel) {
-  ImageList(navController = navController, viewModel = viewModel)
+  ImageList(
+    listName = "Hot Pics",
+    navController = navController,
+    viewModel = viewModel,
+    current = "home"
+  )
 }
 
 @Composable
@@ -445,6 +425,27 @@ fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
 }
 
 @Composable
+fun BottomBar(navController: NavController, current: String) {
+  BottomAppBar {
+    IconButton(onClick = { navController.navigate("home") }, enabled = current != "home") {
+      Icon(Icons.Default.Home, contentDescription = "home")
+    }
+    IconButton(
+      onClick = { navController.navigate("categories") },
+      enabled = current != "categories"
+    ) {
+      Icon(Icons.Default.Menu, contentDescription = "categories")
+    }
+    IconButton(
+      onClick = { navController.navigate("settings") },
+      enabled = current != "settings"
+    ) {
+      Icon(Icons.Default.Settings, contentDescription = "settings")
+    }
+  }
+}
+
+@Composable
 fun <K> SettingsItem(map: Map<K, String>, defaultKey: K, label: String, onChange: (K) -> Unit) {
   var expanded by remember { mutableStateOf(false) }
   val items = remember { map.keys }
@@ -550,7 +551,8 @@ fun Settings(
           )
         }
       }
-    }
+    },
+    bottomBar =     {BottomBar(navController = navController, current = "settings")}
   ) {
     Column(
       modifier = Modifier
