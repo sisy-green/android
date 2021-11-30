@@ -99,6 +99,21 @@ class MainActivity : ComponentActivity() {
             }
             composable("settings") { Settings(navController, userRepo, dataStore) }
             composable("categories") { CategoryList(navController, categoriesViewModel) }
+            composable("search") { Search(navController = navController)}
+            composable(
+              "search/?name={name}&current={current}&query={query}",
+              arguments = listOf(
+                navArgument("name") { defaultValue = "Images" },
+                navArgument("current") {defaultValue = ""},
+                navArgument("search") {defaultValue = ""})) { backStackEntry ->
+              ImageList(
+                listName = backStackEntry.arguments?.getString("name"),
+                navController = navController,
+                viewModel = viewModel,
+                current = backStackEntry.arguments?.getString("current"),
+                query = backStackEntry.arguments?.getString("query"),
+                )
+            }
             composable(
               "category/{ID}?name={name}&current={current}",
               arguments = listOf(navArgument("name") { defaultValue = "Images" }, navArgument("current") {defaultValue = ""})) { backStackEntry ->
@@ -168,16 +183,43 @@ fun CategoryList(navController: NavController, viewModel: CategoriesViewModel) {
     }
   }
 }
+@Composable
+fun Search(navController: NavController) {
+  Scaffold(
+    topBar = {
+      TopAppBar {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+          var input by rememberSaveable { mutableStateOf("") }
+          TextField(
+            value = input,
+            onValueChange = { input = it },
+            label = { Text("Поиск") },
+            modifier = Modifier.width(200.dp),
+          )
+          IconButton(onClick = {
+            navController.navigate("search/?name=${input}&current=search&query=${input}")
+          }) {
+            Icon(imageVector = Icons.Default.Search, contentDescription = "search")
+          }
+        }
+      }
+    },
+    bottomBar = {
+      BottomBar(navController = navController, current = "search")
+    }
+  ) {
+  }
+}
 
 @Composable
 fun ImageList(
   listName: String? = "",
   navController: NavController,
   viewModel: MainViewModel,
-  categoryID: String? = null, current: String? = ""
+  categoryID: String? = null, current: String? = "",  sort: String = "popular", query : String? = ""
 ) {
 //  val images = viewModel.images.distinctBy{ it.id }
-  val images = remember { viewModel.search(categoryID) }
+  val images = remember { viewModel.search(categoryID = categoryID, sort = sort, query = query) }
   Scaffold(
     topBar = {
       TopAppBar {
@@ -239,13 +281,13 @@ fun MainList(navController: NavController, viewModel: MainViewModel) {
     listName = "Hot Pics",
     navController = navController,
     viewModel = viewModel,
-    current = "home"
+    current = "home",
+    sort = "newest"
   )
 }
 
 @Composable
 fun ImageViewer(id: String?, viewModel: MainViewModel) {
-
   id?.let {
     val image = viewModel.images.find { item -> item.id == id }
     val context = LocalContext.current
@@ -434,6 +476,12 @@ fun BottomBar(navController: NavController, current: String) {
     ) {
       Icon(Icons.Default.Settings, contentDescription = "settings")
     }
+    IconButton(
+      onClick = { navController.navigate("search") },
+      enabled = current != "search"
+    ) {
+      Icon(Icons.Default.Search, contentDescription = "search")
+    }
   }
 }
 
@@ -528,14 +576,6 @@ fun Settings(
     topBar = {
       TopAppBar {
         Row(verticalAlignment = Alignment.CenterVertically) {
-          Icon(
-            Icons.Default.ArrowBack,
-            contentDescription = "back",
-            modifier = Modifier.clickable(
-              interactionSource = MutableInteractionSource(),
-              indication = null,
-            ) { navController.popBackStack() },
-          )
           Text(
             text = stringResource(R.string.settings),
             style = MaterialTheme.typography.h5,

@@ -32,7 +32,9 @@ interface ApiService {
   )
   @GET("images/search")
   suspend fun searchImages(
+    @Query("query") query: String? = null,
     @Query("category") category: String? = null,
+    @Query("sort") sort: String = "popular",
     @Query("fields") fields: String = "data(id,assets/preview/url,description)"
     ) : ImagesSearchModel
 

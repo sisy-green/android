@@ -66,10 +66,10 @@ class MainViewModel : ViewModel() {
 //    }
   }
 
-  fun search(categoryID: String? = null, query: String? = null) : List<Image>{
+  fun search(categoryID: String? = null, query: String? = null, sort: String = "popular") : List<Image>{
       viewModelScope.launch {
         try {
-          val resp :ImagesSearchModel = apiService.searchImages(categoryID)
+          val resp :ImagesSearchModel = apiService.searchImages(category = categoryID, sort=sort, query = query)
           images.clear()
           images.addAll(0, resp.data.map {
             Image(
