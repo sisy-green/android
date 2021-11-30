@@ -291,7 +291,7 @@ fun MainList(navController: NavController, viewModel: MainViewModel) {
 @Composable
 fun ImageViewer(id: String?, viewModel: MainViewModel) {
   id?.let {
-    val image = viewModel.images.find { item -> item.id == id }
+    val image  = rememberSaveable(stateSaver = ImageSaver) { mutableStateOf( viewModel.images.find{ item -> item.id ==id}!!)}.value
     val context = LocalContext.current
     image?.let { image ->
       Scaffold(

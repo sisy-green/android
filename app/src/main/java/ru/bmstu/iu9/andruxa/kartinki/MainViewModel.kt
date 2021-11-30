@@ -1,6 +1,7 @@
 package ru.bmstu.iu9.andruxa.kartinki
 
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.saveable.listSaver
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
@@ -8,11 +9,24 @@ import kotlinx.serialization.*
 import kotlinx.serialization.json.*
 
 @Serializable
-data class Image(
+data class ImageData(
   val id: String,
   val asset: String,
   val description: String,
+) {
+}
+
+val ImageSaver = listSaver<ImageData, Any>(
+  save={ listOf(it.id, it.asset, it.description)},
+  restore={ImageData(it[0] as String, it[1] as String, it[2] as String)}
 )
+
+//val CitySaver = listSaver<City, Any>(
+//  save = { listOf(it.name, it.country) },
+//  restore = { City(it[0] as String, it[1] as String) }
+//)
+
+
 @Serializable
 data class Url(
   val url: String,
@@ -29,7 +43,7 @@ data class ImageMock(
 )
 
 class MainViewModel : ViewModel() {
-  val images = mutableStateListOf<Image>()
+  val images =  mutableStateListOf<ImageData>()
 //  val categories = mutableStateListOf<Category>()
   val apiService = ApiService.getInstance()
 
@@ -57,7 +71,7 @@ class MainViewModel : ViewModel() {
       }()
       val imgs = Json { ignoreUnknownKeys = true }.decodeFromString<List<ImageMock>>(result)
       images.addAll(imgs.map { it ->
-        Image(
+        ImageData(
           it.id,
           it.assets.preview.url,
           it.description,
@@ -66,13 +80,13 @@ class MainViewModel : ViewModel() {
 //    }
   }
 
-  fun search(categoryID: String? = null, query: String? = null, sort: String = "popular") : List<Image>{
+  fun search(categoryID: String? = null, query: String? = null, sort: String = "popular") : List<ImageData>{
       viewModelScope.launch {
         try {
           val resp :ImagesSearchModel = apiService.searchImages(category = categoryID, sort=sort, query = query)
           images.clear()
           images.addAll(0, resp.data.map {
-            Image(
+            ImageData(
               it.id,
               it.assets["preview"]!!.url,
               it.description,
