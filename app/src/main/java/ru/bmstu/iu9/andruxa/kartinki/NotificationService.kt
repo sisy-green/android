@@ -13,10 +13,11 @@ import androidx.core.app.NotificationManagerCompat
 import java.time.Duration
 
 const val CHANNEL_ID = "kartinki"
+
 class NotificationService : Service() {
   private fun createNotificationChannel(CHANNEL_ID: String) {
-    val name = getString(R.string.channel_name)
-    val descriptionText = getString(R.string.channel_description)
+    val name = getString(R.string.notifications_channel_name)
+    val descriptionText = getString(R.string.notification_title)
     val importance = NotificationManager.IMPORTANCE_DEFAULT
     val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
       description = descriptionText
@@ -25,8 +26,10 @@ class NotificationService : Service() {
       getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     notificationManager.createNotificationChannel(channel)
   }
-  private val timer =
-    object : CountDownTimer(Duration.ofDays(5).toMillis(), Duration.ofHours(10).toMillis()) {
+  private val timer = object : CountDownTimer(
+    Duration.ofDays(5).toMillis(),
+    Duration.ofHours(10).toMillis(),
+  ) {
       override fun onTick(millisUntilFinished: Long) {
         send()
       }
@@ -34,18 +37,20 @@ class NotificationService : Service() {
         send()
       }
     }
+
   private var notificationId = mutableStateOf(0)
+
   fun send(context: Context = applicationContext) {
-     val resultIntent = Intent(context, MainActivity::class.java)
-     val resultPendingIntent: PendingIntent? = TaskStackBuilder.create(context).run {
+    val resultIntent = Intent(context, MainActivity::class.java)
+    val resultPendingIntent: PendingIntent? = TaskStackBuilder.create(context).run {
       addNextIntentWithParentStack(resultIntent)
       getPendingIntent(0, PendingIntent.FLAG_UPDATE_CURRENT)
     }
 
-     val builder = NotificationCompat.Builder(context, "kartinki")
+    val builder = NotificationCompat.Builder(context, CHANNEL_ID)
       .setSmallIcon(R.drawable.ic_launcher_background)
-      .setContentTitle("Давно тебя не было в уличных гонках!")
-      .setContentText("Kartinki, которые вы пропустили")
+      .setContentTitle(getString(R.string.notification_title))
+      .setContentText(getString(R.string.notification_text))
       .setPriority(NotificationCompat.PRIORITY_DEFAULT)
       .setContentIntent(resultPendingIntent)
       .setAutoCancel(true)
@@ -54,6 +59,7 @@ class NotificationService : Service() {
       notify(notificationId.value, builder.build())
     }
   }
+
   override fun onCreate() {
     HandlerThread("ServiceStartArguments", Process.THREAD_PRIORITY_BACKGROUND).apply {
       start()
@@ -61,6 +67,7 @@ class NotificationService : Service() {
       timer.start()
     }
   }
+
   override fun onBind(intent: Intent?): IBinder? {
     return null
   }

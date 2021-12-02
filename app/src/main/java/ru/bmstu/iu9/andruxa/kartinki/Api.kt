@@ -2,7 +2,6 @@ package ru.bmstu.iu9.andruxa.kartinki
 
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
-import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.Headers
 import retrofit2.http.Query
@@ -35,8 +34,8 @@ interface ApiService {
     @Query("query") query: String? = null,
     @Query("category") category: String? = null,
     @Query("sort") sort: String = "popular",
-    @Query("fields") fields: String = "data(id,assets/preview/url,description)"
-    ) : ImagesSearchModel
+    @Query("fields") fields: String = "data(id,assets/preview/url,description)",
+  ) : ImagesSearchModel
 
   @Headers(
     "Accept: application/json",
