@@ -1,6 +1,5 @@
 package ru.bmstu.iu9.andruxa.kartinki
 
-import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.listSaver
@@ -47,12 +46,6 @@ class MainViewModel : ViewModel() {
 
   fun searchImages(searchParams: ImagesSearchParams) : List<ImageData> {
     if (
-      searchParams != lastImagesSearchParams ||
-      (searchParams == lastImagesSearchParams && imagesError.value)
-    ) {
-      images.clear()
-    }
-    if (
       lastImagesSearchParams == null ||
       searchParams != lastImagesSearchParams ||
       (searchParams == lastImagesSearchParams && imagesError.value)
@@ -64,19 +57,18 @@ class MainViewModel : ViewModel() {
 
   fun updateImages(searchParams: ImagesSearchParams) {
     imagesRefreshing.value = true
-    Log.d("topkek", "update")
     imagesRequest(searchParams)
   }
 
   private fun imagesRequest(searchParams: ImagesSearchParams) {
     viewModelScope.launch {
-      Log.d("topkek", "request")
       try {
         val resp: ImagesSearchModel = apiService.searchImages(
           category = searchParams.categoryID,
           sort = searchParams.sort,
           query = searchParams.query,
         )
+        images.clear()
         images.addAll(0, resp.data.map {
           ImageData(
             it.id,

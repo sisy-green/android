@@ -4,6 +4,9 @@ import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
@@ -143,6 +146,36 @@ fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
           ) {
+            val context = LocalContext.current
+            val errorText = mutableStateOf(stringResource(R.string.profile_name_error))
+            val onCheckClick = {
+              if (input != "") {
+                coroutineScope.launch {
+                  val users = userRepo.getUsers()
+                  if (users.find { user -> user.name == input } != null) {
+                    isError.value = true
+                    Toast
+                      .makeText(context, errorText.value, Toast.LENGTH_SHORT)
+                      .show()
+                  } else {
+                    dataStore.data.collect { settings ->
+                      userRepo.addUser(
+                        SettingsData(
+                          input,
+                          settings[stringPreferencesKey("lang")] ?: "ru",
+                          COLORS.values()[settings[intPreferencesKey("color")] ?: 0],
+                          THEMES.values()[settings[intPreferencesKey("theme")] ?: 0],
+                        )
+                      )
+                      userRepo.initSaved()
+                      selectedItem = input
+                      onChange(input)
+                      input = ""
+                    }
+                  }
+                }
+              }
+            }
             TextField(
               value = input,
               onValueChange = {
@@ -155,9 +188,8 @@ fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
               isError = isError.value,
               shape = MaterialTheme.shapes.large,
               colors = TextFieldDefaults.textFieldColors(backgroundColor = Color.Transparent),
+              keyboardActions = KeyboardActions(onDone = { onCheckClick() })
             )
-            val context = LocalContext.current
-            val errorText = mutableStateOf(stringResource(R.string.profile_name_error))
             Icon(
               Icons.Default.CheckCircle,
               contentDescription = "save",
@@ -167,34 +199,8 @@ fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
                   role = Role.Button,
                   interactionSource = MutableInteractionSource(),
                   indication = rememberRipple(bounded = false, radius = 24.dp),
-                ) {
-                  if (input != "") {
-                    coroutineScope.launch {
-                      val users = userRepo.getUsers()
-                      if (users.find { user -> user.name == input } != null) {
-                        isError.value = true
-                        Toast
-                          .makeText(context, errorText.value, Toast.LENGTH_SHORT)
-                          .show()
-                      } else {
-                        dataStore.data.collect { settings ->
-                          userRepo.addUser(
-                            SettingsData(
-                              input,
-                              settings[stringPreferencesKey("lang")] ?: "ru",
-                              COLORS.values()[settings[intPreferencesKey("color")] ?: 0],
-                              THEMES.values()[settings[intPreferencesKey("theme")] ?: 0],
-                            )
-                          )
-                          userRepo.initSaved()
-                          selectedItem = input
-                          onChange(input)
-                          input = ""
-                        }
-                      }
-                    }
-                  }
-                },
+                  onClick = onCheckClick,
+                ),
             )
           }
           Spacer(modifier = Modifier.height(dimensionResource(R.dimen.padding_big)))
@@ -299,6 +305,7 @@ fun Settings(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
   Column(
     modifier = Modifier
       .fillMaxWidth()
+      .verticalScroll(rememberScrollState())
       .padding(dimensionResource(R.dimen.padding_big))
   ) {
     val coroutineScope = rememberCoroutineScope()

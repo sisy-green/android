@@ -44,7 +44,7 @@ fun TopBar(caption: MutableState<String>, navController: NavController) {
           value = input,
           onValueChange = { input = it },
           placeholder = { Text(stringResource(R.string.search)) },
-          modifier = if (searchExpanded.value) modifier else modifier.width(0.dp),
+          modifier = if (searchExpanded.value) modifier.fillMaxWidth(0.9f) else modifier.width(0.dp),
           singleLine = true,
           shape = MaterialTheme.shapes.large,
           colors = TextFieldDefaults.textFieldColors(backgroundColor = Color.Transparent),

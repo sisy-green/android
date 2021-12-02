@@ -8,6 +8,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Scaffold
 import androidx.compose.material.Surface
@@ -15,6 +16,8 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.intPreferencesKey
@@ -90,7 +93,15 @@ class MainActivity : ComponentActivity() {
               }
             },
           ) {
-            NavHost(navController = navController, startDestination = "home") {
+            NavHost(
+              navController = navController,
+              startDestination = "home",
+              modifier = if (currentBackStackEntry.value?.destination?.route?.startsWith("image/") == false) {
+                Modifier.padding(bottom = 56.dp)
+              } else {
+                Modifier
+              },
+            ) {
               composable("home") {
                 ImageList(
                   navController = navController,
