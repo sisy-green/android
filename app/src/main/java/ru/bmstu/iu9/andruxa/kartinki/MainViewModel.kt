@@ -91,6 +91,14 @@ class MainViewModel : ViewModel() {
     }
     return categories
   }
+
+  suspend fun getImagesUpdates() : Boolean {
+    try {
+      return apiService.getImagesUpdates().data.size > 0
+    } catch (e: Exception) {
+      return false
+    }
+  }
 }
 
 

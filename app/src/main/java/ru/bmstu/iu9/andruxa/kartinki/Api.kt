@@ -25,6 +25,14 @@ data class CategoriesGetModel(
   val data: List<Category>
 )
 
+data class ImagesUpdateModel(
+  val data: List<ImageModel>,
+) {
+  data class ImageModel(
+    val id: String,
+  )
+}
+
 interface ApiService {
   @Headers(
     "Accept: application/json",
@@ -44,6 +52,16 @@ interface ApiService {
   )
   @GET("images/categories")
   suspend fun getCategories() : CategoriesGetModel
+
+  @Headers(
+    "Accept: application/json",
+    "Authorization: Bearer $API_KEY",
+  )
+  @GET("images/updates")
+  suspend fun getImagesUpdates(
+    @Query("interval") interval: String = "10 HOUR",
+    @Query("fields") fields: String = "data(id)",
+  ) : ImagesUpdateModel
 
   companion object {
     private var apiService: ApiService? = null

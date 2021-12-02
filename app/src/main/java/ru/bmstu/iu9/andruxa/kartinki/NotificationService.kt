@@ -10,6 +10,8 @@ import android.os.Process
 import androidx.compose.runtime.mutableStateOf
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import java.time.Duration
 
 const val CHANNEL_ID = "kartinki"
@@ -25,15 +27,28 @@ class NotificationService : Service() {
       getSystemService(NOTIFICATION_SERVICE) as NotificationManager
     notificationManager.createNotificationChannel(channel)
   }
-  private val timer =
-    object : CountDownTimer(Duration.ofDays(5).toMillis(), Duration.ofHours(10).toMillis()) {
-      override fun onTick(millisUntilFinished: Long) {
-        send()
-      }
-      override fun onFinish() {
-        send()
+
+  private val timer = object : CountDownTimer(
+    Duration.ofDays(5).toMillis(),
+    Duration.ofHours(10).toMillis()
+  ) {
+    override fun onTick(millisUntilFinished: Long) {
+      val passed = Duration.ofDays(5).toMillis() - millisUntilFinished
+      if (passed > 500) {
+        runBlocking {
+          launch {
+            if (MainViewModel().getImagesUpdates()) {
+              send()
+            }
+          }
+        }
       }
     }
+    override fun onFinish() {
+      send()
+    }
+  }
+
   private var notificationId = mutableStateOf(0)
   fun send(context: Context = applicationContext) {
      val resultIntent = Intent(context, MainActivity::class.java)
