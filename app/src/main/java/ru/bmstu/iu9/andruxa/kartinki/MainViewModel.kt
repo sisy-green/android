@@ -1,5 +1,6 @@
 package ru.bmstu.iu9.andruxa.kartinki
 
+import android.util.Log
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.listSaver
@@ -34,10 +35,12 @@ data class ImagesSearchParams(
 
 class MainViewModel : ViewModel() {
   val images =  mutableStateListOf<ImageData>()
+  val imagesRefreshing =  mutableStateOf(false)
   val imagesError =  mutableStateOf(false)
   private var lastImagesSearchParams: ImagesSearchParams? = null
 
   val categories = mutableStateListOf<Category>()
+  val categoriesRefreshing =  mutableStateOf(false)
   val categoriesError =  mutableStateOf(false)
 
   private val apiService = ApiService.getInstance()
@@ -54,42 +57,66 @@ class MainViewModel : ViewModel() {
       searchParams != lastImagesSearchParams ||
       (searchParams == lastImagesSearchParams && imagesError.value)
     ) {
-      viewModelScope.launch {
-        try {
-          val resp: ImagesSearchModel = apiService.searchImages(
-            category = searchParams.categoryID,
-            sort = searchParams.sort,
-            query = searchParams.query,
-          )
-          images.addAll(0, resp.data.map {
-            ImageData(
-              it.id,
-              it.assets["preview"]!!.url,
-              it.description,
-            )
-          }.distinctBy { it.id })
-          imagesError.value = false
-          lastImagesSearchParams = searchParams
-        } catch (e: Exception) {
-          imagesError.value = true
-        }
-      }
+      imagesRequest(searchParams)
     }
     return images
   }
 
-  fun getCategories() : List<Category> {
-    if (categories.size == 0) {
-      viewModelScope.launch {
-        try {
-          categories.addAll(0, apiService.getCategories().data)
-          categoriesError.value = false
-        } catch (e: Exception) {
-          categoriesError.value = true
-        }
+  fun updateImages(searchParams: ImagesSearchParams) {
+    imagesRefreshing.value = true
+    Log.d("topkek", "update")
+    imagesRequest(searchParams)
+  }
+
+  private fun imagesRequest(searchParams: ImagesSearchParams) {
+    viewModelScope.launch {
+      Log.d("topkek", "request")
+      try {
+        val resp: ImagesSearchModel = apiService.searchImages(
+          category = searchParams.categoryID,
+          sort = searchParams.sort,
+          query = searchParams.query,
+        )
+        images.addAll(0, resp.data.map {
+          ImageData(
+            it.id,
+            it.assets["preview"]!!.url,
+            it.description,
+          )
+        }.distinctBy { it.id })
+        imagesError.value = false
+        lastImagesSearchParams = searchParams
+      } catch (e: Exception) {
+        imagesError.value = lastImagesSearchParams != searchParams && images.size == 0
+      } finally {
+        imagesRefreshing.value = false
       }
     }
+  }
+
+  fun getCategories() : List<Category> {
+    if (categories.size == 0) {
+      categoriesRequest()
+    }
     return categories
+  }
+
+  fun updateCategories() {
+    categoriesRefreshing.value = true
+    categoriesRequest()
+  }
+
+  private fun categoriesRequest() {
+    viewModelScope.launch {
+      try {
+        categories.addAll(0, apiService.getCategories().data)
+        categoriesError.value = false
+      } catch (e: Exception) {
+        categoriesError.value = categories.size == 0
+      } finally {
+        categoriesRefreshing.value = false
+      }
+    }
   }
 }
 
