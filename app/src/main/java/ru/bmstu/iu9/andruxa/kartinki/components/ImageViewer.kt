@@ -2,12 +2,8 @@ package ru.bmstu.iu9.andruxa.kartinki.components
 
 import android.content.Intent
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.material.FloatingActionButton
-import androidx.compose.material.Icon
-import androidx.compose.material.Scaffold
-import androidx.compose.material.Text
+import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.runtime.Composable
@@ -51,26 +47,25 @@ fun ImageViewer(id: String?, viewModel: MainViewModel) {
           }
         }
       ) {
-        Column(
-          modifier = Modifier
-            .fillMaxWidth()
-            .fillMaxHeight()
-            .background(Color(R.color.black)),
-          verticalArrangement = Arrangement.Center,
-        ) {
-          Image(
-            painter = rememberImagePainter(image.asset, builder = { size(OriginalSize) }),
-            contentDescription = image.description,
-            modifier = Modifier.fillMaxWidth(),
-            contentScale = ContentScale.FillWidth,
-          )
-          Text(
-            text = image.description,
-            modifier = Modifier
-              .fillMaxWidth()
-              .padding(top = dimensionResource(R.dimen.padding_small))
-              .padding(horizontal = dimensionResource(R.dimen.padding_small)),
-          )
+        Surface(color = Color.Black) {
+          Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Center,
+          ) {
+            Image(
+              painter = rememberImagePainter(image.asset, builder = { size(OriginalSize) }),
+              contentDescription = image.description,
+              modifier = Modifier.fillMaxWidth(),
+              contentScale = ContentScale.FillWidth,
+            )
+            Text(
+              text = image.description,
+              modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = dimensionResource(R.dimen.padding_small))
+                .padding(horizontal = dimensionResource(R.dimen.padding_small)),
+            )
+          }
         }
       }
     }
