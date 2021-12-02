@@ -1,23 +1,29 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Картинки</string>
     <string name="cancel">отмена</string>
+    <string name="categories">Категории</string>
     <string name="color">цвет</string>
     <string-array name="colors">
         <item>Фиолетовый</item>
         <item>Красный</item>
     </string-array>
+    <string name="home">Главная</string>
     <string name="language">язык</string>
     <string-array name="languages">
         <item>Русский</item>
         <item>Английский</item>
     </string-array>
+    <string name="network_error">Ошибка сети. Проверьте своё подключение к сети</string>
+    <string name="new_profile">Новый профиль</string>
+    <string name="notification_text">Картинки, которые вы пропустили</string>
+    <string name="notification_title">Давненько вы не смотрели картинки!</string>
+    <string name="notifications_channel_name">Картинки</string>
     <string name="profile">Профиль</string>
+    <string name="profile_name_error">Профиль с таким названием уже существует</string>
+    <string name="search">Поиск</string>
     <string name="settings">Настройки</string>
     <string name="share">Поделиться</string>
     <string name="theme">тема</string>
-    <string name="channel_name">Картинки</string>
-    <string name="channel_description">Давно тебя не было в уличных гонках!</string>
     <string-array name="themes">
         <item>Светлая</item>
         <item>Тёмная</item>

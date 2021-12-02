@@ -1,11 +1,9 @@
 package ru.bmstu.iu9.andruxa.kartinki.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.material.Colors
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.darkColors
-import androidx.compose.material.lightColors
+import androidx.compose.material.*
 import androidx.compose.runtime.Composable
+import com.google.accompanist.systemuicontroller.rememberSystemUiController
 import ru.bmstu.iu9.andruxa.kartinki.COLORS
 
 private fun darkColorPalette(color: COLORS): Colors {
@@ -51,7 +49,8 @@ onSurface = Color.Black,
 @Composable
 fun KartinkiTheme(
   darkTheme: Boolean = isSystemInDarkTheme(),
-  themeColor: COLORS = COLORS.PURPLE, content: @Composable () -> Unit
+  themeColor: COLORS = COLORS.PURPLE,
+  content: @Composable () -> Unit,
 ) {
   val colors = if (darkTheme) {
     darkColorPalette(themeColor)
@@ -65,4 +64,7 @@ fun KartinkiTheme(
     shapes = Shapes,
     content = content
   )
+
+  val systemUiController = rememberSystemUiController()
+  systemUiController.setSystemBarsColor(color = colors.primarySurface)
 }

@@ -17,8 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import coil.compose.rememberImagePainter
 import coil.size.OriginalSize
@@ -68,7 +68,8 @@ fun ImageViewer(id: String?, viewModel: MainViewModel) {
             text = image.description,
             modifier = Modifier
               .fillMaxWidth()
-              .padding(start = 10.dp, top = 10.dp, end = 10.dp),
+              .padding(top = dimensionResource(R.dimen.padding_small))
+              .padding(horizontal = dimensionResource(R.dimen.padding_small)),
           )
         }
       }

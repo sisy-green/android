@@ -1,22 +1,35 @@
 package ru.bmstu.iu9.andruxa.kartinki.components
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.res.dimensionResource
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.compose.currentBackStackEntryAsState
+import ru.bmstu.iu9.andruxa.kartinki.R
 
 @Composable
-fun TopBar(caption: MutableState<String>, navController: NavController, isInner: Boolean = false) {
+fun TopBar(caption: MutableState<String>, navController: NavController) {
+  val searchExpanded = remember { mutableStateOf(false) }
+  var input by rememberSaveable { mutableStateOf("") }
+  val focusRequester = remember { FocusRequester() }
+  val focusManager = LocalFocusManager.current
+  val backStackEntry = navController.currentBackStackEntryAsState()
   TopAppBar {
     Row(
       modifier = Modifier.fillMaxWidth(),
@@ -26,26 +39,51 @@ fun TopBar(caption: MutableState<String>, navController: NavController, isInner:
       Row(
         verticalAlignment = Alignment.CenterVertically,
       ) {
-        if (isInner) {
-          IconButton(onClick = { navController.popBackStack() }) {
-            Icon(
-              Icons.Default.ArrowBack,
-              contentDescription = "back",
-            )
-          }
-        }
-        Text(
-          text = caption.value,
-          style = MaterialTheme.typography.h5,
-          modifier = Modifier.padding(start = 20.dp),
+        val modifier = Modifier.focusRequester(focusRequester)
+        TextField(
+          value = input,
+          onValueChange = { input = it },
+          placeholder = { Text(stringResource(R.string.search)) },
+          modifier = if (searchExpanded.value) modifier else modifier.width(0.dp),
+          singleLine = true,
+          shape = MaterialTheme.shapes.large,
+          colors = TextFieldDefaults.textFieldColors(backgroundColor = Color.Transparent),
+          keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+          keyboardActions = KeyboardActions(onSearch = {
+            navController.navigate("search/?name=${input}&current=search&query=${input}")
+            input = ""
+            searchExpanded.value = false
+            focusManager.clearFocus()
+          }),
         )
+        input = input.replace("\n", "")
+        if (!searchExpanded.value) {
+          if (backStackEntry.value?.destination?.route?.contains('/') == true) {
+            IconButton(onClick = { navController.popBackStack() }) {
+              Icon(
+                Icons.Default.ArrowBack,
+                contentDescription = "back",
+              )
+            }
+          }
+          Text(
+            text = caption.value,
+            style = MaterialTheme.typography.h5,
+            modifier = Modifier.padding(start = dimensionResource(R.dimen.padding_big)),
+          )
+        }
       }
-      IconButton(
-        onClick = { navController.navigate("search") },
-        modifier = Modifier
-      ) {
+      IconButton(onClick = {
+        searchExpanded.value = !searchExpanded.value
+        if (searchExpanded.value) {
+          focusRequester.requestFocus()
+        } else {
+          focusManager.clearFocus()
+          input = ""
+        }
+      }) {
         Icon(
-          Icons.Default.Search,
+          if (searchExpanded.value) Icons.Default.Clear else Icons.Default.Search,
           contentDescription = "search",
         )
       }
@@ -56,14 +94,23 @@ fun TopBar(caption: MutableState<String>, navController: NavController, isInner:
 data class NavItem(
   val name: String,
   val icon: ImageVector,
+  val activeStateCondition: () -> Boolean,
 )
 
 @Composable
-fun BottomBar(navController: NavController, current: String) {
+fun BottomBar(navController: NavController) {
+  val backStackEntry = navController.currentBackStackEntryAsState()
   val navItems = listOf(
-    NavItem("categories", Icons.Default.Menu),
-    NavItem("home", Icons.Default.Home),
-    NavItem("settings", Icons.Default.Settings),
+    NavItem("categories", Icons.Default.Menu) {
+      backStackEntry.value?.destination?.route == "categories" ||
+        backStackEntry.value?.destination?.route?.startsWith("category/") == true
+    },
+    NavItem("home", Icons.Default.Home) {
+      backStackEntry.value?.destination?.route == "home"
+    },
+    NavItem("settings", Icons.Default.Settings) {
+      backStackEntry.value?.destination?.route == "settings"
+    },
   )
   BottomAppBar {
     Row(
@@ -79,8 +126,8 @@ fun BottomBar(navController: NavController, current: String) {
             item.icon,
             contentDescription = item.name,
             tint = LocalContentColor.current.copy(alpha =
-            if (current == item.name)
-              LocalContentAlpha.current
+            if (item.activeStateCondition())
+              ContentAlpha.high
             else
               ContentAlpha.disabled
             ),

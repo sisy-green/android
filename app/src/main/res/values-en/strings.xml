@@ -1,23 +1,29 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Kartinki</string>
     <string name="cancel">cancel</string>
+    <string name="categories">Categories</string>
     <string name="color">color</string>
     <string-array name="colors">
         <item>Violet</item>
         <item>Red</item>
     </string-array>
+    <string name="home">Home</string>
     <string name="language">language</string>
     <string-array name="languages">
         <item>Russian</item>
         <item>English</item>
     </string-array>
+    <string name="network_error">Network error. Check your connection</string>
+    <string name="new_profile">New profile</string>
+    <string name="notification_text">Pictures, you\'ve missed</string>
+    <string name="notification_title">It\'s been a while since you\'ve observed pictures</string>
+    <string name="notifications_channel_name">Kartinki</string>
     <string name="profile">Profile</string>
+    <string name="profile_name_error">Profile with such name already exists</string>
+    <string name="search">Search</string>
     <string name="settings">Settings</string>
     <string name="share">Share</string>
     <string name="theme">theme</string>
-    <string name="channel_name">Kartinki</string>
-    <string name="channel_description">It\'s been a long time since you fell in love!</string>
     <string-array name="themes">
         <item>Light</item>
         <item>Dark</item>
