@@ -23,6 +23,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
@@ -75,10 +76,19 @@ class MainActivity : ComponentActivity() {
         // A surface container using the 'background' color from the theme
         Surface(color = MaterialTheme.colors.background) {
           val navController = rememberNavController()
+          val currentBackStackEntry = navController.currentBackStackEntryAsState()
           val caption = remember { mutableStateOf("") }
           Scaffold(
-            topBar = { TopBar(caption, navController) },
-            bottomBar = { BottomBar(navController) },
+            topBar = {
+              if (currentBackStackEntry.value?.destination?.route?.startsWith("image/") == false) {
+                TopBar(caption, navController)
+              }
+            },
+            bottomBar = {
+              if (currentBackStackEntry.value?.destination?.route?.startsWith("image/") == false) {
+                BottomBar(navController)
+              }
+            },
           ) {
             NavHost(navController = navController, startDestination = "home") {
               composable("home") {
