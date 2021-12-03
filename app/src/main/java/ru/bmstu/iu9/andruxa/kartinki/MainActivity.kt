@@ -17,6 +17,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.datastore.core.DataStore
@@ -40,6 +41,7 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "se
 class MainActivity : ComponentActivity() {
   private var localeChangeBroadcastReceiver: LocaleChangeBroadcastReciever? = null
 
+  @ExperimentalComposeUiApi
   @ExperimentalAnimationApi
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)

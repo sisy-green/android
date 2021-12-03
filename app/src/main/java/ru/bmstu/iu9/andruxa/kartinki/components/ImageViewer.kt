@@ -86,6 +86,7 @@ fun ImageViewer(id: String?, viewModel: MainViewModel) {
                       .padding(top = dimensionResource(R.dimen.padding_big))
                       .padding(bottom = dimensionResource(R.dimen.padding_small))
                       .padding(horizontal = dimensionResource(R.dimen.padding_small)),
+                    color = Color.White
                   )
                 }
               }
@@ -108,6 +109,7 @@ fun ImageViewer(id: String?, viewModel: MainViewModel) {
                     .fillMaxWidth()
                     .padding(top = dimensionResource(R.dimen.padding_small))
                     .padding(horizontal = dimensionResource(R.dimen.padding_small)),
+                  color = Color.White
                 )
               }
             }
