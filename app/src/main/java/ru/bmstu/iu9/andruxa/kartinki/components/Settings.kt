@@ -1,5 +1,6 @@
 package ru.bmstu.iu9.andruxa.kartinki.components
 
+import android.content.res.Configuration
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -15,8 +16,10 @@ import androidx.compose.material.ripple.rememberRipple
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.dimensionResource
 import androidx.compose.ui.res.stringArrayResource
@@ -24,6 +27,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
@@ -37,6 +41,7 @@ import ru.bmstu.iu9.andruxa.kartinki.*
 import ru.bmstu.iu9.andruxa.kartinki.R
 import java.util.*
 
+@ExperimentalComposeUiApi
 @Composable
 fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
   val defaultKey = dataStore.data.map { p ->
@@ -74,15 +79,24 @@ fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
     )
   }
   if (expanded) {
-    Dialog(onDismissRequest = { expanded = false }) {
+    Dialog(
+      onDismissRequest = { expanded = false },
+      properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
       Card(
         backgroundColor = MaterialTheme.colors.background,
-        modifier = Modifier
-          .fillMaxWidth()
-          .wrapContentHeight(),
+        modifier = when (LocalConfiguration.current.orientation) {
+          Configuration.ORIENTATION_LANDSCAPE -> Modifier
+            .fillMaxWidth(0.4f)
+            .wrapContentHeight()
+          else -> Modifier
+            .fillMaxWidth(0.8f)
+            .wrapContentHeight()
+        },
       ) {
         Column(
           modifier = Modifier
+            .verticalScroll(rememberScrollState())
             .fillMaxWidth()
             .padding(dimensionResource(R.dimen.padding_big)),
           horizontalAlignment = Alignment.End,
@@ -292,6 +306,7 @@ fun <K> SettingsItem(map: Map<K, String>, defaultKey: K, label: String, onChange
   }
 }
 
+@ExperimentalComposeUiApi
 @Composable
 fun Settings(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
   val currentProfile = dataStore.data.map { p ->
