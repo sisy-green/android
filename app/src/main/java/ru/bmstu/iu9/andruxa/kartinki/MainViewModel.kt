@@ -61,6 +61,7 @@ class MainViewModel : ViewModel() {
   }
 
   private fun imagesRequest(searchParams: ImagesSearchParams) {
+    images.clear()
     viewModelScope.launch {
       try {
         val resp: ImagesSearchModel = apiService.searchImages(
@@ -68,7 +69,6 @@ class MainViewModel : ViewModel() {
           sort = searchParams.sort,
           query = searchParams.query,
         )
-        images.clear()
         images.addAll(0, resp.data.map {
           ImageData(
             it.id,

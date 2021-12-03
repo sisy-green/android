@@ -31,6 +31,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.launch
 import ru.bmstu.iu9.andruxa.kartinki.*
 import ru.bmstu.iu9.andruxa.kartinki.R
@@ -158,7 +159,7 @@ fun ProfileItem(userRepo: UserRepo, dataStore: DataStore<Preferences>) {
                       .makeText(context, errorText.value, Toast.LENGTH_SHORT)
                       .show()
                   } else {
-                    dataStore.data.collect { settings ->
+                    dataStore.data.take(1).collect { settings ->
                       userRepo.addUser(
                         SettingsData(
                           input,

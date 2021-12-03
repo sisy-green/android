@@ -8,6 +8,7 @@ import androidx.datastore.dataStore
 import androidx.datastore.preferences.protobuf.InvalidProtocolBufferException
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.take
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromStream
@@ -21,7 +22,7 @@ val Context.userDataStore: DataStore<User> by dataStore(
 )
 
 class UserRepo(
-  val settings: DataStore<User>,
+  private val settings: DataStore<User>,
 ) {
   suspend fun addUser(s: SettingsData) {
     settings.updateData { store -> User(store.users + s) }
@@ -43,7 +44,7 @@ class UserRepo(
         edited.add(settingsData)
       }
     }
-    settings.updateData { store -> User(edited) }
+    settings.updateData { User(edited) }
   }
 
   suspend fun getUsers(): List<SettingsData> {
@@ -62,15 +63,13 @@ class UserRepo(
 data class User(
   var users: List<SettingsData>
 ) {
+  @ExperimentalSerializationApi
   fun writeTo(output: OutputStream) {
-    val data = Json.encodeToStream(serializer(), this, output)
-  }
-
-  fun addUser(settings: SettingsData) {
-    users = users.toList()
+    Json.encodeToStream(serializer(), this, output)
   }
 }
 
+@ExperimentalSerializationApi
 fun parseFrom(input: InputStream): User {
   return Json.decodeFromStream(input)
 }
@@ -101,6 +100,7 @@ object UserDataSerializer : Serializer<User> {
     )
   )
 
+  @ExperimentalSerializationApi
   override suspend fun readFrom(input: InputStream): User {
     return try {
       parseFrom(input)
@@ -109,5 +109,6 @@ object UserDataSerializer : Serializer<User> {
     }
   }
 
+  @ExperimentalSerializationApi
   override suspend fun writeTo(t: User, output: OutputStream) = t.writeTo(output)
 }

@@ -7,6 +7,7 @@ import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.ExperimentalAnimationApi
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.MaterialTheme
@@ -39,6 +40,7 @@ val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "se
 class MainActivity : ComponentActivity() {
   private var localeChangeBroadcastReceiver: LocaleChangeBroadcastReciever? = null
 
+  @ExperimentalAnimationApi
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
 
@@ -83,14 +85,10 @@ class MainActivity : ComponentActivity() {
           val caption = remember { mutableStateOf("") }
           Scaffold(
             topBar = {
-              if (currentBackStackEntry.value?.destination?.route?.startsWith("image/") == false) {
-                TopBar(caption, navController)
-              }
+              TopBar(caption, navController, currentBackStackEntry.value?.destination?.route?.startsWith("image/") == false)
             },
             bottomBar = {
-              if (currentBackStackEntry.value?.destination?.route?.startsWith("image/") == false) {
-                BottomBar(navController)
-              }
+              BottomBar(navController, currentBackStackEntry.value?.destination?.route?.startsWith("image/") == false)
             },
           ) {
             NavHost(
