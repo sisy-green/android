@@ -2,6 +2,7 @@ package ru.bmstu.iu9.andruxa.kartinki.components
 
 import android.content.Intent
 import android.content.res.Configuration
+import androidx.compose.animation.*
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -30,6 +31,7 @@ import ru.bmstu.iu9.andruxa.kartinki.ImageSaver
 import ru.bmstu.iu9.andruxa.kartinki.MainViewModel
 import ru.bmstu.iu9.andruxa.kartinki.R
 
+@ExperimentalAnimationApi
 @Composable
 fun ImageViewer(id: String?, viewModel: MainViewModel) {
   id?.let {
@@ -76,16 +78,20 @@ fun ImageViewer(id: String?, viewModel: MainViewModel) {
                   modifier = Modifier.fillMaxSize(),
                   contentScale = ContentScale.Fit,
                 )
-                if (showText.value) {
+                AnimatedVisibility(
+                  visible = showText.value,
+                  enter = fadeIn() + expandVertically(),
+                  exit = fadeOut() + shrinkVertically(),
+                ) {
                   Text(
                     text = image.description,
                     textAlign = TextAlign.Center,
                     modifier = Modifier
-                      .background(MaterialTheme.colors.background.copy(alpha = 0.8f))
+                      .background(Color.Black.copy(alpha = 0.8f))
                       .fillMaxWidth()
                       .padding(top = dimensionResource(R.dimen.padding_big))
                       .padding(bottom = dimensionResource(R.dimen.padding_small))
-                      .padding(horizontal = dimensionResource(R.dimen.padding_small)),
+                      .padding(horizontal = dimensionResource(R.dimen.padding_super_big)),
                     color = Color.White
                   )
                 }

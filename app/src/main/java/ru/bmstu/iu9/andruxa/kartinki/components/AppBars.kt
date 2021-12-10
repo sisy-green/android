@@ -16,6 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalFocusManager
@@ -49,7 +50,13 @@ fun TopBar(caption: MutableState<String>, navController: NavController, visible:
         Row(
           verticalAlignment = Alignment.CenterVertically,
         ) {
-          val modifier = Modifier.focusRequester(focusRequester)
+          val modifier = Modifier
+            .focusRequester(focusRequester)
+            .onFocusChanged {
+              if (!it.isFocused) {
+                searchExpanded.value = false
+              }
+            }
           TextField(
             value = input,
             onValueChange = { input = it },
